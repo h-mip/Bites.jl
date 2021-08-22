@@ -17,4 +17,15 @@ import Random, Distributions
     @test length(n_mosquito_infections) == 3
     @test length(n_human_infections) == 3
     @test length(n_human_recovered) == 3
+
+    expected_bites = 2.0
+    p1, p2 = distribute_bite_probabilities(Distributions.Uniform(0,1), Distributions.Uniform(0,1), 100, 400, expected_bites)
+
+    this_expected_bites = Float64(0)
+    for i in p1, j in p2
+      this_expected_bites += i*j
+    end
+  
+    @test abs(expected_bites - this_expected_bites) < .0001
+
 end

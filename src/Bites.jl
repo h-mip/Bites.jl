@@ -95,4 +95,29 @@ for s = 2:n_steps
 
 end
 
+export distribute_bite_probabilities
+"""
+    distribute_bite_probabilities(D1, D2, N1::Int64, N2::Int64, expected_bites::Float64)::::Tuple{Array{Float64, 1}, Array{Float64, 1}}
+
+Returns a Tuple containing (1) per mosquito probabilities of being bitten for each person, and (2) per person probabilities of biting for each mosquito.
+"""
+function distribute_bite_probabilities(D1, D2, N1::Int64, N2::Int64, expected_bites::Float64)::::Tuple{Array{Float64, 1}, Array{Float64, 1}}
+
+  probs1 = Random.rand(D1, N1)
+  probs2 = Random.rand(D2, N2)
+
+  this_expected_bites = Float64(0)
+
+  for i in probs1, j in probs2
+    this_expected_bites += i*j
+  end
+
+  probs1 = probs1 .* (expected_bites/this_expected_bites)
+
+  return probs1, probs2
+
+end
+
+
+
 end
