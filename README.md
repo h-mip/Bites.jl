@@ -3,8 +3,8 @@
 [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://h-mip.github.io/Bites.jl/stable)
 [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://h-mip.github.io/Bites.jl/dev)
 [![Build Status](https://github.com/h-mip/Bites.jl/workflows/CI/badge.svg)](https://github.com/h-mip/Bites.jl/actions)
-[![Build Status](https://travis-ci.com/h-mip/Bites.jl.svg?branch=master)](https://travis-ci.com/h-mip/Bites.jl)
-[![Coverage](https://codecov.io/gh/h-mip/Bites.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/h-mip/Bites.jl)
+[![Build Status](https://travis-ci.com/h-mip/Bites.jl.svg?branch=main)](https://travis-ci.com/h-mip/Bites.jl)
+[![Coverage](https://codecov.io/gh/h-mip/Bites.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/h-mip/Bites.jl)
 
 Bites is a Julia package for analyzing human-mosquito biting networks.
 
