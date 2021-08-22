@@ -1,9 +1,9 @@
 module Bites
 
-import Distributions
+import Random, Distributions
 
 function infect(human_prob::Float64, mosquito_prob::Float64, transmission_prob::Float64)::Bool
-    rand(Distributions.Bernoulli(human_prob*mosquito_prob*transmission_prob), 1)[1]
+    Random.rand(Distributions.Bernoulli(human_prob*mosquito_prob*transmission_prob), 1)[1]
 end
 
 function one_way_bites(infecteds::Array{Float64, 1}, susceptibles::Array{Float64, 1}, transmission_prob::Float64)::Array{Bool, 1}
@@ -25,7 +25,6 @@ function one_way_bites(infecteds::Array{Float64, 1}, susceptibles::Array{Float64
 end
 
 export bite_steps
-
 """
     bite_steps(n_steps::Int64, n_humans::Int64, n_mosquitoes::Int64, human_infection_time::Int64, mosquito_life_span::Int64, human_probs::Array{Float64, 1}, mosquito_probs::Array{Float64, 1}, transmission_prob::Float64)::Tuple{Array{Int64, 1}, Array{Int64, 1}, Array{Int64, 1}}
 
@@ -38,10 +37,10 @@ function bite_steps(n_steps::Int64, n_humans::Int64, n_mosquitoes::Int64, human_
   status_mosquitoes = zeros(Int8, n_mosquitoes)
 
   # vector of mosquito ages
-  age_mosquitoes = rand(DiscreteUniform(0, mosquito_life_span), n_mosquitoes)
+  age_mosquitoes = Random.rand(Distributions.DiscreteUniform(0, mosquito_life_span), n_mosquitoes)
 
   # creating first infection
-  status_humans[rand(1:n_humans, 1)[1]] = 1
+  status_humans[Random.rand(1:n_humans, 1)[1]] = 1
 
   n_human_infections = Vector{Int64}(undef, n_steps)
   n_mosquito_infections = Vector{Int64}(undef, n_steps)
