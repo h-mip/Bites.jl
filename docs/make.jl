@@ -19,6 +19,9 @@ makedocs(;
 )
 
 deploydocs(;
+    target = "build",
     repo="github.com/h-mip/Bites.jl",
     devbranch="main",
+    devurl = "dev",
+    versions = ["stable" => "v^", "v#.#"],
 )
