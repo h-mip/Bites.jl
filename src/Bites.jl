@@ -125,6 +125,58 @@ function distribute_bite_probabilities(D1, D2, N1::Int64, N2::Int64, expected_bi
 
 end
 
+export calculate_r0
+"""
+      calculate_r0(n_reps::Int64, infection_ts::Array{Int64,2}, seed_cases::Int64)
+
+Returns a named Tuple containing (1) R0 (mean of reps), (2) R0 for each repetition, (3) mean R0 for successive numbers of repetitions.
+
+## Parameters
+* `n_reps` The number of repetitions in the simulation. In64. 
+* `infection_ts` The matrix time series of number of infected cases at each time step. A two-dimensional array of In64 with dimensions equal to number of repetitions and number of time steps.
+* `seed_cases` Number of infected cases seeded into the population at the beginning of each repetition. If `seed_cases=0`, then the first cases will be detected in the data. (For example, if we seed 1 infected human case into the population, then we would use `seed_cases=1` for the huiman R0 and `seed_cases=0` for the mosquito R0.)
+"""
+function calculate_r0(n_reps::Int64, infection_ts::Array{Int64,2}, seed_cases::Int64)
+
+  R0s = Vector(undef, n_reps)
+
+  if seed_cases
+    for i in 1:n_reps
+      x = infection_ts[i,:]
+      if maximum(x) > seed_cases
+        R0s[i] = minimum(x[x.>seed_cases])
+      else
+        R0s[i] = 0
+      end
+    end  
+  else
+    for i in 1:n_reps
+      x = n_mosquito_infections_reps[i,:]
+      if maximum(x) > 1
+        this_min = minimum(x[x.>0])
+        if sum(x.>this_min)>0
+          this_next_min = minimum(x[x.>this_min])
+          R0s[i] = (this_next_min - this_min) / this_min
+        else
+          R0s[i] = 0
+        end
+      else
+        R0s[i] = 0
+      end
+    end
+  end
+
+  R0 = mean(R0s)
+
+  converge_check = Vector(undef, n_reps)
+  for i in 1:n_reps
+    converge_check[i] = mean(R0s[1:i])
+  end
+
+  return (R0=R0, R0_reps = R0s, converge_check = converge_check)
+
+end
+
 
 
 end

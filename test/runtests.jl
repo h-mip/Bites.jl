@@ -4,8 +4,8 @@ import Random, Distributions
 
 @testset "Bites.jl" begin
     Random.seed!(123)
-    n_steps = 3
-    n_reps = 4
+    n_steps = 30
+    n_reps = 10
     n_humans = 10
     n_mosquitoes = 40
     transmission_prob = .99
@@ -16,9 +16,9 @@ import Random, Distributions
 
     # bite_steps
     n_mosquito_infections, n_human_infections, n_human_recovered = bite_steps(n_steps, n_humans, n_mosquitoes, human_infection_time, mosquito_life_span, human_probs, mosquito_probs, transmission_prob)
-    @test length(n_mosquito_infections) == 3
-    @test length(n_human_infections) == 3
-    @test length(n_human_recovered) == 3
+    @test length(n_mosquito_infections) == n_steps
+    @test length(n_human_infections) == n_steps
+    @test length(n_human_recovered) == n_steps
 
     # distribute bites
     expected_bites = 2.0
@@ -49,5 +49,13 @@ import Random, Distributions
       this_expected_bites += i*j
     end
     @test abs(expected_bites - this_expected_bites) < .0001
+
+    # TO DO
+    # calculate R0 using infection data generated above
+    # R0_result_h = calculate_r0(n_steps, n_human_infections, seed_cases=1)
+
+    # R0_result_m = calculate_r0(n_steps, n_mosquito_infections, seed_cases=0)
+
+    @test 
 
 end
