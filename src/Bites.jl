@@ -100,6 +100,15 @@ export distribute_bite_probabilities
     distribute_bite_probabilities(D1, D2, N1::Int64, N2::Int64, expected_bites::Float64)::Tuple{Array{Float64, 1}, Array{Float64, 1}}
 
 Returns a Tuple containing (1) per mosquito probabilities of being bitten for each person, and (2) per person probabilities of biting for each mosquito.
+
+## Parameters
+* `D1` The distribution from which the human probabilities of being bitten should be drawn. A distribution from the Distributions.jl package. 
+* `D2` The distribution from which the mosquito probabilities of biting should be drawn. A distribution from the Distributions.jl package. 
+* `N1` The number of humans in the population. Int64.
+* `N2` The number of mosquitoes in the population. Int64.
+* `expected_bites` The expected number of total bites (total links in the bipartite network). Float64.
+
+
 """
 function distribute_bite_probabilities(D1, D2, N1::Int64, N2::Int64, expected_bites::Float64)::Tuple{Array{Float64, 1}, Array{Float64, 1}}
 
