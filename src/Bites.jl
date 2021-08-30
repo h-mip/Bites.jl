@@ -140,7 +140,7 @@ function calculate_r0(n_reps::Int64, infection_ts::Array{Int64,2}, seed_cases::I
 
   R0s = Vector(undef, n_reps)
 
-  if seed_cases
+  if seed_cases > 0
     for i in 1:n_reps
       x = infection_ts[i,:]
       if maximum(x) > seed_cases
