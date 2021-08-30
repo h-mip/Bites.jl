@@ -1,6 +1,6 @@
 module Bites
 
-import Random, Distributions
+import Random, Distributions, Statistics
 
 function infect(human_prob::Float64, mosquito_prob::Float64, transmission_prob::Float64)::Bool
     Random.rand(Distributions.Bernoulli(human_prob*mosquito_prob*transmission_prob), 1)[1]
@@ -151,7 +151,7 @@ function calculate_r0(n_reps::Int64, infection_ts::Array{Int64,2}, seed_cases::I
     end  
   else
     for i in 1:n_reps
-      x = n_mosquito_infections_reps[i,:]
+      x = infection_ts[i,:]
       if maximum(x) > 1
         this_min = minimum(x[x.>0])
         if sum(x.>this_min)>0
@@ -166,11 +166,11 @@ function calculate_r0(n_reps::Int64, infection_ts::Array{Int64,2}, seed_cases::I
     end
   end
 
-  R0 = mean(R0s)
+  R0 = Statistics.mean(R0s)
 
   converge_check = Vector(undef, n_reps)
   for i in 1:n_reps
-    converge_check[i] = mean(R0s[1:i])
+    converge_check[i] = Statistics.mean(R0s[1:i])
   end
 
   return (R0=R0, R0_reps = R0s, converge_check = converge_check)

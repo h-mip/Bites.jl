@@ -14,11 +14,18 @@ import Random, Distributions
     mosquito_probs = fill(1/n_humans, n_mosquitoes)
     human_probs = fill(1/n_mosquitoes, n_humans)
 
+    n_human_infections_reps = Array{Int64}(undef, n_reps, n_steps)
+    n_mosquito_infections_reps = Array{Int64}(undef, n_reps, n_steps)
+    n_human_recovered_reps = Array{Int64}(undef, n_reps, n_steps)
+  
     # bite_steps
-    n_mosquito_infections, n_human_infections, n_human_recovered = bite_steps(n_steps, n_humans, n_mosquitoes, human_infection_time, mosquito_life_span, human_probs, mosquito_probs, transmission_prob)
-    @test length(n_mosquito_infections) == n_steps
-    @test length(n_human_infections) == n_steps
-    @test length(n_human_recovered) == n_steps
+    for r in 1:n_reps
+      n_mosquito_infections_reps[r, :], n_human_infections_reps[r, :], n_human_recovered_reps[r, :] = bite_steps(n_steps, n_humans, n_mosquitoes, human_infection_time, mosquito_life_span, human_probs, mosquito_probs, transmission_prob)
+    end
+
+    @test length(n_mosquito_infections_reps[1,:]) == n_steps
+    @test length(n_human_infections_reps[1,:]) == n_steps
+    @test length(n_human_recovered_reps[1,:]) == n_steps
 
     # distribute bites
     expected_bites = 2.0
@@ -50,12 +57,16 @@ import Random, Distributions
     end
     @test abs(expected_bites - this_expected_bites) < .0001
 
-    # TO DO
-    # calculate R0 using infection data generated above
-    # R0_result_h = calculate_r0(n_steps, n_human_infections, seed_cases=1)
+    # calculate_r0
+    R0_result_h = calculate_r0(n_reps, n_human_infections_reps, 1)
 
-    # R0_result_m = calculate_r0(n_steps, n_mosquito_infections, seed_cases=0)
-
-    @test 
+    R0_result_m = calculate_r0(n_reps, n_mosquito_infections_reps, 0)
+    
+    @test length(R0_result_m.R0) == 1
+    @test length(R0_result_m.R0_reps) == n_reps
+    @test length(R0_result_m.converge_check) == n_reps
+    @test length(R0_result_h.R0) == 1
+    @test length(R0_result_h.R0_reps) == n_reps
+    @test length(R0_result_h.converge_check) == n_reps
 
 end
