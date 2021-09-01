@@ -3,7 +3,14 @@ module Bites
 import Random, Distributions, Statistics
 
 function infect(human_prob::Float64, mosquito_prob::Float64, transmission_prob::Float64)::Bool
-    Random.rand(Distributions.Bernoulli(human_prob*mosquito_prob*transmission_prob), 1)[1]
+    this_p = human_prob*mosquito_prob*transmission_prob
+    if this_p <=0 
+      return 0
+    elseif this_p >= 1
+      return 1
+    else 
+      return Random.rand(Distributions.Bernoulli(human_prob*mosquito_prob*transmission_prob), 1)[1]
+    end
 end
 
 function one_way_bites(infecteds::Array{Float64, 1}, susceptibles::Array{Float64, 1}, transmission_prob::Float64)::Array{Bool, 1}
