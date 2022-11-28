@@ -14,6 +14,8 @@ Bites is a Julia package for analyzing human-mosquito biting networks.
 
 ## About
 
+The development of Bites has been possible thanks to funding from the European Research Council (ERC) under the European Union’s Horizon 2020 research and innovation programme (Grant agreement No. 853271)
+
 Copyright 2021 John R.B. Palmer
 
 Bites.jl is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
