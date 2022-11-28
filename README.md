@@ -14,7 +14,7 @@ Bites is a Julia package for analyzing human-mosquito biting networks.
 
 ## About
 
-The development of Bites has been possible thanks to funding from the European Research Council (ERC) under the European Union’s Horizon 2020 research and innovation programme (Grant agreement No. 853271)
+Bites has been developed as part of the [Human-Mosquito Interaction Project](https://h-mip.com), which has received funding from the European Research Council (ERC) under the European Union’s Horizon 2020 research and innovation programme (Grant agreement No. 853271). 
 
 Copyright 2021 John R.B. Palmer
 
