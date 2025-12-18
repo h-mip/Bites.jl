@@ -3,13 +3,13 @@ module Bites
 import Random, Distributions, Statistics
 
 function infect(human_prob::Float64, mosquito_prob::Float64, transmission_prob::Float64)::Bool
-    this_p = human_prob*mosquito_prob*transmission_prob
-    if this_p <=0 
-      return 0
+    this_p = human_prob * mosquito_prob * transmission_prob
+    if this_p <= 0
+      return false
     elseif this_p >= 1
-      return 1
-    else 
-      return Random.rand(Distributions.Bernoulli(human_prob*mosquito_prob*transmission_prob), 1)[1]
+      return true
+    else
+      return Random.rand(Distributions.Bernoulli(this_p))
     end
 end
 
@@ -18,7 +18,6 @@ function one_way_bites(infecteds::Array{Float64, 1}, susceptibles::Array{Float64
   if length(infecteds) > 0
     for i in 1:length(infecteds)
         susceptible_indexes = collect(1:length(susceptibles)) 
-        [.!result]
         if length(susceptible_indexes) > 0
             for s in susceptible_indexes
                 if infect(infecteds[i], susceptibles[s], transmission_prob)
@@ -40,8 +39,8 @@ Returns a Tuple containing (1) an array with number of infected mosquitoes at ea
 function bite_steps(n_steps::Int64, n_humans::Int64, n_mosquitoes::Int64, human_infection_time::Int64, mosquito_life_span::Int64, human_probs::Array{Float64, 1}, mosquito_probs::Array{Float64, 1}, transmission_prob::Float64)::Tuple{Array{Int64, 1}, Array{Int64, 1}, Array{Int64, 1}}
 
   # vectors of infections statusas follows: 0 = susceptible, >0 = infected, <0 = recovered. Everyone starts susceptible
-  status_humans = zeros(Int8, n_humans)
-  status_mosquitoes = zeros(Int8, n_mosquitoes)
+  status_humans = zeros(Int, n_humans)
+  status_mosquitoes = zeros(Int, n_mosquitoes)
 
   # vector of mosquito ages
   age_mosquitoes = Random.rand(Distributions.DiscreteUniform(0, mosquito_life_span), n_mosquitoes)
@@ -123,10 +122,15 @@ function distribute_bite_probabilities(D1, D2, N1::Int64, N2::Int64, expected_bi
   this_expected_bites = Float64(0)
 
   for i in probs1, j in probs2
-    this_expected_bites += i*j
+    this_expected_bites += i * j
   end
 
-  probs1 = probs1 .* (expected_bites/this_expected_bites)
+  if this_expected_bites == 0
+    return probs1 .* 0, probs2 .* 0
+  end
+
+  scale = expected_bites / this_expected_bites
+  probs1 = probs1 .* scale
 
   return probs1, probs2
 
@@ -145,7 +149,7 @@ Returns a named Tuple containing (1) R0 (mean of reps), (2) R0 for each repetiti
 """
 function calculate_r0(n_reps::Int64, infection_ts::Array{Int64,2}, seed_cases::Int64)
 
-  R0s = Vector(undef, n_reps)
+  R0s = zeros(Float64, n_reps)
 
   if seed_cases > 0
     for i in 1:n_reps
@@ -175,7 +179,7 @@ function calculate_r0(n_reps::Int64, infection_ts::Array{Int64,2}, seed_cases::I
 
   R0 = Statistics.mean(R0s)
 
-  converge_check = Vector(undef, n_reps)
+  converge_check = similar(R0s)
   for i in 1:n_reps
     converge_check[i] = Statistics.mean(R0s[1:i])
   end
