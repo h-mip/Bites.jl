@@ -128,6 +128,23 @@ function bite_steps_quad(n_steps::Int64, n_birds::Int64, n_mosquitoes::Int64, n_
     status_horses[Random.rand(1:n_horses, min(seed_horses, n_horses))] .= 1
   end
 
+  # Optional per-cycle bite counting (aggregated histogram only; avoids large allocations)
+  record_bites = collect_bite_counts
+  if record_bites
+    empty!(bite_cycle_counts)
+    mosq_cycle_day = zeros(Int, n_mosquitoes)
+    mosq_cycle_bites = zeros(Int, n_mosquitoes)
+  else
+    mosq_cycle_day = nothing
+    mosq_cycle_bites = nothing
+  end
+
+  # Optional bite-level edge logging for network visualization; caller can toggle for a single run
+  record_network = network_edges !== nothing
+  if record_network
+    empty!(network_edges)
+  end
+
   n_bird_infections = Vector{Int64}(undef, n_steps)
   n_mosquito_infections = Vector{Int64}(undef, n_steps)
   n_human_infections = Vector{Int64}(undef, n_steps)
@@ -207,6 +224,12 @@ function bite_steps_quad(n_steps::Int64, n_birds::Int64, n_mosquitoes::Int64, n_
 
   end
 
+  if record_bites
+    for count in mosq_cycle_bites
+      bite_cycle_counts[count] = get(bite_cycle_counts, count, 0) + 1
+    end
+  end
+
   return n_mosquito_infections, n_bird_infections, n_human_infections, n_horse_infections, n_bird_recovered, n_human_recovered, n_horse_recovered
 
 end
@@ -236,11 +259,16 @@ end
         seed_horses::Int=0,
         gonotrophic_length::Int=4,
         bite_decay::Float64=0.2,
+        collect_bite_counts::Bool=false,
+        bite_cycle_counts::Dict{Int, Int}=Dict{Int, Int}(),
+        network_edges::Union{Nothing, Vector{NamedTuple{(:step, :mosquito, :target_type, :target), Tuple{Int, Int, Symbol, Int}}}}=nothing,
     )
 
 Quadripartite simulation where each infected mosquito's chance to take additional bites within a day decays after each bite. A shorter `gonotrophic_length` increases bite attempts per day. The baseline functions remain unchanged; use this variant when you want per-day bite tapering.
+
+Optional logging: set `collect_bite_counts=true` and pass a `Dict{Int,Int}` via `bite_cycle_counts` to accumulate a histogram of bites per mosquito gonotrophic cycle. Provide `network_edges` as a vector of named tuples to capture bite edges for visualization; leave at `nothing` to avoid overhead.
 """
-function bite_steps_quad_decay(n_steps::Int64, n_birds::Int64, n_mosquitoes::Int64, n_humans::Int64, n_horses::Int64, bird_infection_time::Int64, human_infection_time::Int64, horse_infection_time::Int64, mosquito_life_span::Int64, bird_probs::Array{Float64, 1}, mosquito_probs::Array{Float64, 1}, human_probs::Array{Float64, 1}, horse_probs::Array{Float64, 1}, p_bird_to_mosquito::Float64, p_mosquito_to_bird::Float64, p_mosquito_to_human::Float64, p_mosquito_to_horse::Float64; seed_birds::Int=1, seed_mosquitoes::Int=0, seed_humans::Int=0, seed_horses::Int=0, gonotrophic_length::Int=4, bite_decay::Float64=0.2)
+function bite_steps_quad_decay(n_steps::Int64, n_birds::Int64, n_mosquitoes::Int64, n_humans::Int64, n_horses::Int64, bird_infection_time::Int64, human_infection_time::Int64, horse_infection_time::Int64, mosquito_life_span::Int64, bird_probs::Array{Float64, 1}, mosquito_probs::Array{Float64, 1}, human_probs::Array{Float64, 1}, horse_probs::Array{Float64, 1}, p_bird_to_mosquito::Float64, p_mosquito_to_bird::Float64, p_mosquito_to_human::Float64, p_mosquito_to_horse::Float64; seed_birds::Int=1, seed_mosquitoes::Int=0, seed_humans::Int=0, seed_horses::Int=0, gonotrophic_length::Int=4, bite_decay::Float64=0.2, collect_bite_counts::Bool=false, bite_cycle_counts::Dict{Int, Int}=Dict{Int, Int}(), network_edges::Union{Nothing, Vector{NamedTuple{(:step, :mosquito, :target_type, :target), Tuple{Int, Int, Symbol, Int}}}}=nothing)
 
   status_birds = zeros(Int, n_birds)
   status_mosquitoes = zeros(Int, n_mosquitoes)
@@ -280,9 +308,23 @@ function bite_steps_quad_decay(n_steps::Int64, n_birds::Int64, n_mosquitoes::Int
   n_human_recovered[1] = sum(status_humans .< 0)
   n_horse_recovered[1] = sum(status_horses .< 0)
 
-  bite_rate = 1 / max(gonotrophic_length, 1)
+  cycle_len = max(gonotrophic_length, 1)
+  bite_rate = 1 / cycle_len
 
   for s = 2:n_steps
+
+    if record_bites
+      mosq_cycle_day .+= 1
+      completed = findall(>=(cycle_len), mosq_cycle_day)
+      if !isempty(completed)
+        for idx in completed
+          count = mosq_cycle_bites[idx]
+          bite_cycle_counts[count] = get(bite_cycle_counts, count, 0) + 1
+        end
+        mosq_cycle_bites[completed] .= 0
+        mosq_cycle_day[completed] .= 0
+      end
+    end
 
     status_birds[findall(status_birds .> 0)] .+= 1
     status_birds[findall(status_birds .> bird_infection_time)] .= -1
@@ -294,8 +336,19 @@ function bite_steps_quad_decay(n_steps::Int64, n_birds::Int64, n_mosquitoes::Int
     status_horses[findall(status_horses .> horse_infection_time)] .= -1
 
     age_mosquitoes .+= 1
-    status_mosquitoes[findall(age_mosquitoes .> mosquito_life_span)] .= 0
-    age_mosquitoes[findall(age_mosquitoes .> mosquito_life_span)] .= 0
+    dead_ms = findall(age_mosquitoes .> mosquito_life_span)
+    if !isempty(dead_ms)
+      if record_bites
+        for idx in dead_ms
+          count = mosq_cycle_bites[idx]
+          bite_cycle_counts[count] = get(bite_cycle_counts, count, 0) + 1
+        end
+        mosq_cycle_bites[dead_ms] .= 0
+        mosq_cycle_day[dead_ms] .= 0
+      end
+      status_mosquitoes[dead_ms] .= 0
+      age_mosquitoes[dead_ms] .= 0
+    end
 
     i_bs = findall(status_birds .> 0)
     s_ms = findall(status_mosquitoes .== 0)
@@ -316,6 +369,9 @@ function bite_steps_quad_decay(n_steps::Int64, n_birds::Int64, n_mosquitoes::Int
     for m in i_ms
       attempt = 0
       while rand() < (bite_rate * (bite_decay^attempt))
+        if record_bites
+          mosq_cycle_bites[m] += 1
+        end
         w_b = isempty(s_bs) ? 0.0 : sum(bird_probs[s_bs])
         w_h = isempty(s_hs) ? 0.0 : sum(human_probs[s_hs])
         w_ho = isempty(s_horses) ? 0.0 : sum(horse_probs[s_horses])
@@ -339,6 +395,9 @@ function bite_steps_quad_decay(n_steps::Int64, n_birds::Int64, n_mosquitoes::Int
               end
             end
           end
+          if record_network
+            push!(network_edges, (step=s, mosquito=m, target_type=:bird, target=idx))
+          end
           if rand() < p_mosquito_to_bird
             status_birds[idx] = 1
             deleteat!(s_bs, findfirst(==(idx), s_bs))
@@ -359,6 +418,9 @@ function bite_steps_quad_decay(n_steps::Int64, n_birds::Int64, n_mosquitoes::Int
               end
             end
           end
+          if record_network
+            push!(network_edges, (step=s, mosquito=m, target_type=:human, target=idx))
+          end
           if rand() < p_mosquito_to_human
             status_humans[idx] = 1
             deleteat!(s_hs, findfirst(==(idx), s_hs))
@@ -378,6 +440,9 @@ function bite_steps_quad_decay(n_steps::Int64, n_birds::Int64, n_mosquitoes::Int
                 break
               end
             end
+          end
+          if record_network
+            push!(network_edges, (step=s, mosquito=m, target_type=:horse, target=idx))
           end
           if rand() < p_mosquito_to_horse
             status_horses[idx] = 1
