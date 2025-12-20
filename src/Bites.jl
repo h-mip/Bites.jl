@@ -30,7 +30,7 @@ function one_way_bites(infecteds::Array{Float64, 1}, susceptibles::Array{Float64
   return result
 end
 
-export bite_steps, bite_steps_quad
+export bite_steps, bite_steps_quad, bite_steps_quad_decay
 """
     bite_steps(n_steps::Int64, n_humans::Int64, n_mosquitoes::Int64, human_infection_time::Int64, mosquito_life_span::Int64, human_probs::Array{Float64, 1}, mosquito_probs::Array{Float64, 1}, transmission_prob::Float64)::Tuple{Array{Int64, 1}, Array{Int64, 1}, Array{Int64, 1}}
 
@@ -193,6 +193,199 @@ function bite_steps_quad(n_steps::Int64, n_birds::Int64, n_mosquitoes::Int64, n_
       new_horse_infections = one_way_bites(mosquito_probs[i_ms], horse_probs[s_horses], p_mosquito_to_horse)
       if sum(new_horse_infections) > 0
         status_horses[s_horses[new_horse_infections]] .= 1
+      end
+    end
+
+    n_bird_infections[s] = sum(status_birds .> 0)
+    n_mosquito_infections[s] = sum(status_mosquitoes .> 0)
+    n_human_infections[s] = sum(status_humans .> 0)
+    n_horse_infections[s] = sum(status_horses .> 0)
+
+    n_bird_recovered[s] = sum(status_birds .< 0)
+    n_human_recovered[s] = sum(status_humans .< 0)
+    n_horse_recovered[s] = sum(status_horses .< 0)
+
+  end
+
+  return n_mosquito_infections, n_bird_infections, n_human_infections, n_horse_infections, n_bird_recovered, n_human_recovered, n_horse_recovered
+
+end
+
+"""
+    bite_steps_quad_decay(
+        n_steps::Int64,
+        n_birds::Int64,
+        n_mosquitoes::Int64,
+        n_humans::Int64,
+        n_horses::Int64,
+        bird_infection_time::Int64,
+        human_infection_time::Int64,
+        horse_infection_time::Int64,
+        mosquito_life_span::Int64,
+        bird_probs::Array{Float64, 1},
+        mosquito_probs::Array{Float64, 1},
+        human_probs::Array{Float64, 1},
+        horse_probs::Array{Float64, 1},
+        p_bird_to_mosquito::Float64,
+        p_mosquito_to_bird::Float64,
+        p_mosquito_to_human::Float64,
+        p_mosquito_to_horse::Float64;
+        seed_birds::Int=1,
+        seed_mosquitoes::Int=0,
+        seed_humans::Int=0,
+        seed_horses::Int=0,
+        gonotrophic_length::Int=4,
+        bite_decay::Float64=0.2,
+    )
+
+Quadripartite simulation where each infected mosquito's chance to take additional bites within a day decays after each bite. A shorter `gonotrophic_length` increases bite attempts per day. The baseline functions remain unchanged; use this variant when you want per-day bite tapering.
+"""
+function bite_steps_quad_decay(n_steps::Int64, n_birds::Int64, n_mosquitoes::Int64, n_humans::Int64, n_horses::Int64, bird_infection_time::Int64, human_infection_time::Int64, horse_infection_time::Int64, mosquito_life_span::Int64, bird_probs::Array{Float64, 1}, mosquito_probs::Array{Float64, 1}, human_probs::Array{Float64, 1}, horse_probs::Array{Float64, 1}, p_bird_to_mosquito::Float64, p_mosquito_to_bird::Float64, p_mosquito_to_human::Float64, p_mosquito_to_horse::Float64; seed_birds::Int=1, seed_mosquitoes::Int=0, seed_humans::Int=0, seed_horses::Int=0, gonotrophic_length::Int=4, bite_decay::Float64=0.2)
+
+  status_birds = zeros(Int, n_birds)
+  status_mosquitoes = zeros(Int, n_mosquitoes)
+  status_humans = zeros(Int, n_humans)
+  status_horses = zeros(Int, n_horses)
+
+  age_mosquitoes = Random.rand(Distributions.DiscreteUniform(0, mosquito_life_span), n_mosquitoes)
+
+  if seed_birds > 0 && n_birds > 0
+    status_birds[Random.rand(1:n_birds, min(seed_birds, n_birds))] .= 1
+  end
+  if seed_mosquitoes > 0 && n_mosquitoes > 0
+    status_mosquitoes[Random.rand(1:n_mosquitoes, min(seed_mosquitoes, n_mosquitoes))] .= 1
+  end
+  if seed_humans > 0 && n_humans > 0
+    status_humans[Random.rand(1:n_humans, min(seed_humans, n_humans))] .= 1
+  end
+  if seed_horses > 0 && n_horses > 0
+    status_horses[Random.rand(1:n_horses, min(seed_horses, n_horses))] .= 1
+  end
+
+  n_bird_infections = Vector{Int64}(undef, n_steps)
+  n_mosquito_infections = Vector{Int64}(undef, n_steps)
+  n_human_infections = Vector{Int64}(undef, n_steps)
+  n_horse_infections = Vector{Int64}(undef, n_steps)
+
+  n_bird_recovered = Vector{Int64}(undef, n_steps)
+  n_human_recovered = Vector{Int64}(undef, n_steps)
+  n_horse_recovered = Vector{Int64}(undef, n_steps)
+
+  n_bird_infections[1] = sum(status_birds .> 0)
+  n_mosquito_infections[1] = sum(status_mosquitoes .> 0)
+  n_human_infections[1] = sum(status_humans .> 0)
+  n_horse_infections[1] = sum(status_horses .> 0)
+
+  n_bird_recovered[1] = sum(status_birds .< 0)
+  n_human_recovered[1] = sum(status_humans .< 0)
+  n_horse_recovered[1] = sum(status_horses .< 0)
+
+  bite_rate = 1 / max(gonotrophic_length, 1)
+
+  for s = 2:n_steps
+
+    status_birds[findall(status_birds .> 0)] .+= 1
+    status_birds[findall(status_birds .> bird_infection_time)] .= -1
+
+    status_humans[findall(status_humans .> 0)] .+= 1
+    status_humans[findall(status_humans .> human_infection_time)] .= -1
+
+    status_horses[findall(status_horses .> 0)] .+= 1
+    status_horses[findall(status_horses .> horse_infection_time)] .= -1
+
+    age_mosquitoes .+= 1
+    status_mosquitoes[findall(age_mosquitoes .> mosquito_life_span)] .= 0
+    age_mosquitoes[findall(age_mosquitoes .> mosquito_life_span)] .= 0
+
+    i_bs = findall(status_birds .> 0)
+    s_ms = findall(status_mosquitoes .== 0)
+    if !isempty(i_bs) && !isempty(s_ms)
+      new_mosquito_infections = one_way_bites(bird_probs[i_bs], mosquito_probs[s_ms], p_bird_to_mosquito)
+      if sum(new_mosquito_infections) > 0
+        status_mosquitoes[s_ms[new_mosquito_infections]] .= 1
+      end
+    end
+
+    i_ms = findall(status_mosquitoes .> 0)
+
+    s_bs = findall(status_birds .== 0)
+    s_hs = findall(status_humans .== 0)
+    s_horses = findall(status_horses .== 0)
+
+    # mosquito -> bird/human/horse with per-bite decay
+    for m in i_ms
+      attempt = 0
+      while rand() < (bite_rate * (bite_decay^attempt))
+        w_b = isempty(s_bs) ? 0.0 : sum(bird_probs[s_bs])
+        w_h = isempty(s_hs) ? 0.0 : sum(human_probs[s_hs])
+        w_ho = isempty(s_horses) ? 0.0 : sum(horse_probs[s_horses])
+        total_w = w_b + w_h + w_ho
+        total_w == 0 && break
+
+        r = rand() * total_w
+        if r < w_b
+          # pick bird
+          if length(s_bs) == 1
+            idx = s_bs[1]
+          else
+            target = rand() * w_b
+            accum = 0.0
+            idx = s_bs[1]
+            for j in s_bs
+              accum += bird_probs[j]
+              if accum >= target
+                idx = j
+                break
+              end
+            end
+          end
+          if rand() < p_mosquito_to_bird
+            status_birds[idx] = 1
+            deleteat!(s_bs, findfirst(==(idx), s_bs))
+          end
+        elseif r < w_b + w_h
+          # pick human
+          if length(s_hs) == 1
+            idx = s_hs[1]
+          else
+            target = rand() * w_h
+            accum = 0.0
+            idx = s_hs[1]
+            for j in s_hs
+              accum += human_probs[j]
+              if accum >= target
+                idx = j
+                break
+              end
+            end
+          end
+          if rand() < p_mosquito_to_human
+            status_humans[idx] = 1
+            deleteat!(s_hs, findfirst(==(idx), s_hs))
+          end
+        else
+          # pick horse
+          if length(s_horses) == 1
+            idx = s_horses[1]
+          else
+            target = rand() * w_ho
+            accum = 0.0
+            idx = s_horses[1]
+            for j in s_horses
+              accum += horse_probs[j]
+              if accum >= target
+                idx = j
+                break
+              end
+            end
+          end
+          if rand() < p_mosquito_to_horse
+            status_horses[idx] = 1
+            deleteat!(s_horses, findfirst(==(idx), s_horses))
+          end
+        end
+
+        attempt += 1
       end
     end
 
