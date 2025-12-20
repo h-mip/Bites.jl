@@ -128,22 +128,6 @@ function bite_steps_quad(n_steps::Int64, n_birds::Int64, n_mosquitoes::Int64, n_
     status_horses[Random.rand(1:n_horses, min(seed_horses, n_horses))] .= 1
   end
 
-  # Optional per-cycle bite counting (aggregated histogram only; avoids large allocations)
-  record_bites = collect_bite_counts
-  if record_bites
-    empty!(bite_cycle_counts)
-    mosq_cycle_day = zeros(Int, n_mosquitoes)
-    mosq_cycle_bites = zeros(Int, n_mosquitoes)
-  else
-    mosq_cycle_day = nothing
-    mosq_cycle_bites = nothing
-  end
-
-  # Optional bite-level edge logging for network visualization; caller can toggle for a single run
-  record_network = network_edges !== nothing
-  if record_network
-    empty!(network_edges)
-  end
 
   n_bird_infections = Vector{Int64}(undef, n_steps)
   n_mosquito_infections = Vector{Int64}(undef, n_steps)
@@ -224,12 +208,6 @@ function bite_steps_quad(n_steps::Int64, n_birds::Int64, n_mosquitoes::Int64, n_
 
   end
 
-  if record_bites
-    for count in mosq_cycle_bites
-      bite_cycle_counts[count] = get(bite_cycle_counts, count, 0) + 1
-    end
-  end
-
   return n_mosquito_infections, n_bird_infections, n_human_infections, n_horse_infections, n_bird_recovered, n_human_recovered, n_horse_recovered
 
 end
@@ -288,6 +266,21 @@ function bite_steps_quad_decay(n_steps::Int64, n_birds::Int64, n_mosquitoes::Int
   end
   if seed_horses > 0 && n_horses > 0
     status_horses[Random.rand(1:n_horses, min(seed_horses, n_horses))] .= 1
+  end
+
+  record_bites = collect_bite_counts
+  if record_bites
+    empty!(bite_cycle_counts)
+    mosq_cycle_day = zeros(Int, n_mosquitoes)
+    mosq_cycle_bites = zeros(Int, n_mosquitoes)
+  else
+    mosq_cycle_day = nothing
+    mosq_cycle_bites = nothing
+  end
+
+  record_network = network_edges !== nothing
+  if record_network
+    empty!(network_edges)
   end
 
   n_bird_infections = Vector{Int64}(undef, n_steps)
