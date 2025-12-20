@@ -1,3 +1,8 @@
+using Pkg
+Pkg.activate(@__DIR__)
+Pkg.develop(path=joinpath(@__DIR__, ".."))
+Pkg.instantiate()
+
 using Bites
 using Documenter
 
@@ -18,10 +23,12 @@ makedocs(;
     ],
 )
 
-deploydocs(;
-    target = "build",
-    repo="github.com/h-mip/Bites.jl",
-    devbranch="main",
-    devurl = "dev",
-    versions = ["stable" => "v^", "v#.#"],
-)
+if get(ENV, "CI", "false") == "true"
+    deploydocs(;
+        target = "build",
+        repo="github.com/h-mip/Bites.jl",
+        devbranch="main",
+        devurl = "dev",
+        versions = ["stable" => "v^", "v#.#"],
+    )
+end
