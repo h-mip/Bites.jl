@@ -126,12 +126,12 @@ end
     seed_horses::Int=0,
     bird_incubation_time::Int=10,
     mosquito_incubation_time::Int=4,
-    human_prob::Union{Float64, AbstractVector{<:Float64}}=nothing,
+    human_prob::Union{Float64, AbstractVector{<:Float64}, Nothing}=nothing,
   )
 
 Simulates a quadripartite West Nile–style system with birds (reservoir), mosquitoes (vector), and dead-end hosts (humans and horses). Newly infected birds and mosquitoes enter a latent state for `bird_incubation_time` or `mosquito_incubation_time` steps before becoming infectious; infectious duration then follows the respective `*_infection_time`. Optionally weight humans via `human_prob` (scalar or per-human vector) when normalizing mosquito target selection across bird/human/horse hosts. Returns a tuple of infection and recovery time series ordered as (mosquito_infections, bird_infections, human_infections, horse_infections, bird_recovered, human_recovered, horse_recovered).
 """
-function bite_steps_quad(n_steps::Int64, n_birds::Int64, n_mosquitoes::Int64, n_humans::Int64, n_horses::Int64, bird_infection_time::Int64, human_infection_time::Int64, horse_infection_time::Int64, mosquito_life_span::Int64, bird_probs::Array{Float64, 1}, mosquito_probs::Array{Float64, 1}, human_probs::Array{Float64, 1}, horse_probs::Array{Float64, 1}, p_bird_to_mosquito::Float64, p_mosquito_to_bird::Float64, p_mosquito_to_human::Float64, p_mosquito_to_horse::Float64; seed_birds::Int=1, seed_mosquitoes::Int=0, seed_humans::Int=0, seed_horses::Int=0, bird_incubation_time::Int=10, mosquito_incubation_time::Int=4, human_prob::Union{Float64, AbstractVector{<:Float64}}=nothing)
+function bite_steps_quad(n_steps::Int64, n_birds::Int64, n_mosquitoes::Int64, n_humans::Int64, n_horses::Int64, bird_infection_time::Int64, human_infection_time::Int64, horse_infection_time::Int64, mosquito_life_span::Int64, bird_probs::Array{Float64, 1}, mosquito_probs::Array{Float64, 1}, human_probs::Array{Float64, 1}, horse_probs::Array{Float64, 1}, p_bird_to_mosquito::Float64, p_mosquito_to_bird::Float64, p_mosquito_to_human::Float64, p_mosquito_to_horse::Float64; seed_birds::Int=1, seed_mosquitoes::Int=0, seed_humans::Int=0, seed_horses::Int=0, bird_incubation_time::Int=10, mosquito_incubation_time::Int=4, human_prob::Union{Float64, AbstractVector{<:Float64}, Nothing}=nothing)
 
   status_birds = zeros(Int, n_birds)
   latent_birds = zeros(Int, n_birds)
@@ -160,10 +160,17 @@ function bite_steps_quad(n_steps::Int64, n_birds::Int64, n_mosquitoes::Int64, n_
   host_weight_bird = n_birds > 0 ? 1.0 : 0.0
   host_weight_human = n_humans > 0 ? Statistics.mean(human_weight) : 0.0
   host_weight_horse = n_horses > 0 ? 1.0 : 0.0
-  total_host_weight = host_weight_bird + host_weight_human + host_weight_horse
-  bird_group_weight = total_host_weight > 0 ? host_weight_bird / total_host_weight : 0.0
-  human_group_weight = total_host_weight > 0 ? host_weight_human / total_host_weight : 0.0
-  horse_group_weight = total_host_weight > 0 ? host_weight_horse / total_host_weight : 0.0
+
+  if human_prob === nothing
+    bird_group_weight = 1.0
+    human_group_weight = 1.0
+    horse_group_weight = 1.0
+  else
+    total_host_weight = host_weight_bird + host_weight_human + host_weight_horse
+    bird_group_weight = total_host_weight > 0 ? host_weight_bird / total_host_weight : 0.0
+    human_group_weight = total_host_weight > 0 ? host_weight_human / total_host_weight : 0.0
+    horse_group_weight = total_host_weight > 0 ? host_weight_horse / total_host_weight : 0.0
+  end
 
   if seed_birds > 0 && n_birds > 0
     status_birds[Random.rand(1:n_birds, min(seed_birds, n_birds))] .= 1
@@ -219,16 +226,16 @@ function bite_steps_quad(n_steps::Int64, n_birds::Int64, n_mosquitoes::Int64, n_
       age_mosquitoes[dead_ms] .= 0
     end
 
+    expiring_birds = findall(latent_birds .== 1)
     latent_birds[findall(latent_birds .> 0)] .-= 1
-    newly_infectious_birds = findall((latent_birds .== 0) .& (status_birds .== 0))
-    if !isempty(newly_infectious_birds)
-      status_birds[newly_infectious_birds] .= 1
+    if !isempty(expiring_birds)
+      status_birds[expiring_birds] .= 1
     end
 
+    expiring_ms = findall(latent_mosquitoes .== 1)
     latent_mosquitoes[findall(latent_mosquitoes .> 0)] .-= 1
-    newly_infectious_ms = findall((latent_mosquitoes .== 0) .& (status_mosquitoes .== 0))
-    if !isempty(newly_infectious_ms)
-      status_mosquitoes[newly_infectious_ms] .= 1
+    if !isempty(expiring_ms)
+      status_mosquitoes[expiring_ms] .= 1
     end
 
     i_bs = findall(status_birds .> 0)
@@ -320,12 +327,12 @@ end
     network_edges::Union{Nothing, Vector{NamedTuple{(:step, :mosquito, :target_type, :target, :success), Tuple{Int, Int, Symbol, Int, Bool}}}}=nothing,
     bird_incubation_time::Int=10,
     mosquito_incubation_time::Int=4,
-    human_prob::Union{Float64, AbstractVector{<:Float64}}=nothing,
+    human_prob::Union{Float64, AbstractVector{<:Float64}, Nothing}=nothing,
   )
 
 Optional logging: set `collect_bite_counts=true` and pass a `Dict{Int,Int}` via `bite_cycle_counts` to accumulate a histogram of bites per mosquito gonotrophic cycle. Provide `network_edges` as a vector of named tuples to capture bite edges for visualization; leave at `nothing` to avoid overhead. Each logged edge includes `success::Bool` to indicate whether transmission occurred. Birds and mosquitoes now incubate in a latent state for the given incubation times before becoming infectious; infectious duration still follows `bird_infection_time` for birds (mosquitoes remain infectious until death). `human_prob` (scalar or vector) weights humans in the normalized host target mix alongside birds and horses. The function returns an eighth value: total mosquitoes ever infected (slot-level) over the run, useful for cumulative AR.
 """
-function bite_steps_quad_decay(n_steps::Int64, n_birds::Int64, n_mosquitoes::Int64, n_humans::Int64, n_horses::Int64, bird_infection_time::Int64, human_infection_time::Int64, horse_infection_time::Int64, mosquito_life_span::Int64, bird_probs::Array{Float64, 1}, mosquito_probs::Array{Float64, 1}, human_probs::Array{Float64, 1}, horse_probs::Array{Float64, 1}, p_bird_to_mosquito::Float64, p_mosquito_to_bird::Float64, p_mosquito_to_human::Float64, p_mosquito_to_horse::Float64; seed_birds::Int=1, seed_mosquitoes::Int=0, seed_humans::Int=0, seed_horses::Int=0, gonotrophic_length::Int=4, bite_decay::Float64=0.2, collect_bite_counts::Bool=false, bite_cycle_counts::Dict{Int, Int}=Dict{Int, Int}(), network_edges::Union{Nothing, Vector{NamedTuple{(:step, :mosquito, :target_type, :target, :success), Tuple{Int, Int, Symbol, Int, Bool}}}}=nothing, bird_incubation_time::Int=10, mosquito_incubation_time::Int=4, human_prob::Union{Float64, AbstractVector{<:Float64}}=nothing)
+function bite_steps_quad_decay(n_steps::Int64, n_birds::Int64, n_mosquitoes::Int64, n_humans::Int64, n_horses::Int64, bird_infection_time::Int64, human_infection_time::Int64, horse_infection_time::Int64, mosquito_life_span::Int64, bird_probs::Array{Float64, 1}, mosquito_probs::Array{Float64, 1}, human_probs::Array{Float64, 1}, horse_probs::Array{Float64, 1}, p_bird_to_mosquito::Float64, p_mosquito_to_bird::Float64, p_mosquito_to_human::Float64, p_mosquito_to_horse::Float64; seed_birds::Int=1, seed_mosquitoes::Int=0, seed_humans::Int=0, seed_horses::Int=0, gonotrophic_length::Int=4, bite_decay::Float64=0.2, collect_bite_counts::Bool=false, bite_cycle_counts::Dict{Int, Int}=Dict{Int, Int}(), network_edges::Union{Nothing, Vector{NamedTuple{(:step, :mosquito, :target_type, :target, :success), Tuple{Int, Int, Symbol, Int, Bool}}}}=nothing, bird_incubation_time::Int=10, mosquito_incubation_time::Int=4, human_prob::Union{Float64, AbstractVector{<:Float64}, Nothing}=nothing)
 
   status_birds = zeros(Int, n_birds)
   latent_birds = zeros(Int, n_birds)
@@ -402,10 +409,17 @@ function bite_steps_quad_decay(n_steps::Int64, n_birds::Int64, n_mosquitoes::Int
   host_weight_bird = n_birds > 0 ? 1.0 : 0.0
   host_weight_human = n_humans > 0 ? Statistics.mean(human_weight) : 0.0
   host_weight_horse = n_horses > 0 ? 1.0 : 0.0
-  total_host_weight = host_weight_bird + host_weight_human + host_weight_horse
-  bird_bite_rate = total_host_weight > 0 ? bite_rate * host_weight_bird / total_host_weight : 0.0
-  human_bite_rate = total_host_weight > 0 ? bite_rate * host_weight_human / total_host_weight : 0.0
-  horse_bite_rate = total_host_weight > 0 ? bite_rate * host_weight_horse / total_host_weight : 0.0
+
+  if human_prob === nothing
+    bird_bite_rate = bite_rate
+    human_bite_rate = bite_rate
+    horse_bite_rate = bite_rate
+  else
+    total_host_weight = host_weight_bird + host_weight_human + host_weight_horse
+    bird_bite_rate = total_host_weight > 0 ? bite_rate * host_weight_bird / total_host_weight : 0.0
+    human_bite_rate = total_host_weight > 0 ? bite_rate * host_weight_human / total_host_weight : 0.0
+    horse_bite_rate = total_host_weight > 0 ? bite_rate * host_weight_horse / total_host_weight : 0.0
+  end
 
   avg_m_prob = Statistics.mean(mosquito_probs)
   avg_b_prob = n_birds > 0 ? Statistics.mean(bird_probs) : 0.0
@@ -455,16 +469,16 @@ function bite_steps_quad_decay(n_steps::Int64, n_birds::Int64, n_mosquitoes::Int
       age_mosquitoes[dead_ms] .= 0
     end
 
+    expiring_birds = findall(latent_birds .== 1)
     latent_birds[findall(latent_birds .> 0)] .-= 1
-    newly_infectious_birds = findall((latent_birds .== 0) .& (status_birds .== 0))
-    if !isempty(newly_infectious_birds)
-      status_birds[newly_infectious_birds] .= 1
+    if !isempty(expiring_birds)
+      status_birds[expiring_birds] .= 1
     end
 
+    expiring_ms = findall(latent_mosquitoes .== 1)
     latent_mosquitoes[findall(latent_mosquitoes .> 0)] .-= 1
-    newly_infectious_ms = findall((latent_mosquitoes .== 0) .& (status_mosquitoes .== 0))
-    if !isempty(newly_infectious_ms)
-      status_mosquitoes[newly_infectious_ms] .= 1
+    if !isempty(expiring_ms)
+      status_mosquitoes[expiring_ms] .= 1
     end
 
     # Precompute shuffled orders to avoid ordering bias within the step

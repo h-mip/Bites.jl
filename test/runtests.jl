@@ -83,6 +83,7 @@ import Random, Distributions
     p_mosquito_to_human = 0.9
     p_mosquito_to_horse = 0.9
 
+    Random.seed!(1234)
     n_mosq_q, n_bird_q, n_human_q, n_horse_q, n_bird_rec_q, n_human_rec_q, n_horse_rec_q = bite_steps_quad(
       n_steps, n_birds, n_mosquitoes, n_humans, n_horses, bird_infection_time, human_infection_time, horse_infection_time, mosquito_life_span,
       bird_probs, mosquito_probs, human_probs, horse_probs, p_bird_to_mosquito, p_mosquito_to_bird, p_mosquito_to_human, p_mosquito_to_horse;
@@ -108,5 +109,80 @@ import Random, Distributions
 
     @test maximum(n_mosq_dead) == 0
     @test maximum(n_bird_dead) == 0
+
+    @testset "Incubation delays" begin
+      Random.seed!(321)
+      n_steps = 6
+      n_birds = 1
+      n_mosquitoes = 1
+      n_humans = 1
+      n_horses = 0
+
+      bird_probs = [1.0]
+      mosquito_probs = [1.0]
+      human_probs = [1.0]
+      horse_probs = Float64[]
+
+      p_bird_to_mosquito = 1.0
+      p_mosquito_to_bird = 1.0
+      p_mosquito_to_human = 1.0
+      p_mosquito_to_horse = 1.0
+
+      n_mosq_latent, n_bird_latent, n_human_latent, _, _, _, _ = bite_steps_quad(
+        n_steps, n_birds, n_mosquitoes, n_humans, n_horses, 3, 3, 3, 10,
+        bird_probs, mosquito_probs, human_probs, horse_probs,
+        p_bird_to_mosquito, p_mosquito_to_bird, p_mosquito_to_human, p_mosquito_to_horse;
+        seed_birds=1,
+        seed_mosquitoes=0,
+        bird_incubation_time=0,
+        mosquito_incubation_time=2,
+      )
+
+      @test n_mosq_latent[2] == 1 # mosquito infected but latent
+      @test n_human_latent[3] == 0 # cannot transmit while latent
+      @test n_human_latent[4] >= 1 # becomes infectious after incubation
+    end
+
+    @testset "Human probability weighting" begin
+      Random.seed!(11)
+      n_steps = 4
+      n_birds = 0
+      n_mosquitoes = 1
+      n_humans = 1
+      n_horses = 0
+
+      bird_probs = Float64[]
+      mosquito_probs = [1.0]
+      human_probs = [1.0]
+      horse_probs = Float64[]
+
+      p_bird_to_mosquito = 1.0
+      p_mosquito_to_bird = 1.0
+      p_mosquito_to_human = 1.0
+      p_mosquito_to_horse = 1.0
+
+      _, _, n_human_zero, _, _, _, _ = bite_steps_quad(
+        n_steps, n_birds, n_mosquitoes, n_humans, n_horses, 1, 1, 1, 10,
+        bird_probs, mosquito_probs, human_probs, horse_probs,
+        p_bird_to_mosquito, p_mosquito_to_bird, p_mosquito_to_human, p_mosquito_to_horse;
+        seed_birds=0,
+        seed_mosquitoes=1,
+        seed_humans=0,
+        human_prob=0.0,
+      )
+
+      @test maximum(n_human_zero) == 0 # downweighted humans are not targeted
+
+      _, _, n_human_default, _, _, _, _ = bite_steps_quad(
+        n_steps, n_birds, n_mosquitoes, n_humans, n_horses, 1, 1, 1, 10,
+        bird_probs, mosquito_probs, human_probs, horse_probs,
+        p_bird_to_mosquito, p_mosquito_to_bird, p_mosquito_to_human, p_mosquito_to_horse;
+        seed_birds=0,
+        seed_mosquitoes=1,
+        seed_humans=0,
+      )
+
+      @test maximum(n_human_default) > 0 # default behavior preserves human infections
+    end
 
 end

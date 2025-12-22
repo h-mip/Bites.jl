@@ -4,7 +4,7 @@ CurrentModule = Bites
 
 # Bites
 
-Quadripartite and bipartite vector–host simulations (birds ↔ mosquitoes, mosquitoes → humans/horses) with helpers for probability generation and summary metrics.
+Quadripartite and bipartite vector–host simulations (birds ↔ mosquitoes, humans ↔ mosquitoes, mosquitoes → humans/horses) with helpers for probability generation and summary metrics.
 
 ## Quick start
 
@@ -26,6 +26,25 @@ mosq_ts, bird_ts, hum_ts, horse_ts, bird_rec, hum_rec, horse_rec = bite_steps_qu
 	50, 5_000, 5_000, 100, 300, 4, 5, 5, 20,
 	bird_probs, mosquito_probs, human_probs, horse_probs,
 	0.4, 0.6, 0.25, 0.2;
+	seed_birds=1,
+)
+```
+
+## Incubation and human targeting
+
+- Birds and mosquitoes now pass through a latent/incubation period before becoming infectious. Control durations with `bird_incubation_time` and `mosquito_incubation_time` (defaults 10 and 4). Latent individuals are counted in the infection timeseries but do not transmit until their timers expire.
+- Human bite weight can be customized via `human_prob` (scalar or vector). This weight is normalized against bird and horse weights so you can emphasize/de-emphasize humans without changing other host probabilities. Leaving it `nothing` preserves the previous behavior.
+
+Example with explicit incubation and human weighting:
+
+```julia
+mosq_ts, bird_ts, hum_ts, horse_ts, bird_rec, hum_rec, horse_rec = bite_steps_quad(
+	60, 5_000, 5_000, 1_000, 3_000, 4, 5, 5, 20,
+	bird_probs, mosquito_probs, human_probs, horse_probs,
+	0.3, 0.4, 0.25, 0.2;
+	bird_incubation_time=8,
+	mosquito_incubation_time=4,
+	human_prob=0.5,
 	seed_birds=1,
 )
 ```

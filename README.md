@@ -5,7 +5,8 @@
 [![Build Status](https://github.com/h-mip/Bites.jl/workflows/CI/badge.svg)](https://github.com/h-mip/Bites.jl/actions)
 [![Coverage](https://codecov.io/gh/h-mip/Bites.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/h-mip/Bites.jl)
 
-Bites is a Julia package for analyzing human-mosquito biting networks.
+Bites is a Julia package for analyzing mosquito-host biting networks. In addition to bipartite mosquito-host models, Bites now supports quadripartite simulations with birds, mosquitoes, humans, and horses, suitable for West Nile Virus (WNV) transmission modeling. The package includes features for simulating incubation periods and customizing host-specitic bite probabilities.
+
 
 ## Installation
 ```julia
