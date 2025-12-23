@@ -395,39 +395,14 @@ function bite_steps_quad_decay(n_steps::Int64, n_birds::Int64, n_mosquitoes::Int
   cycle_len = max(gonotrophic_length, 1)
   bite_rate = 1 / cycle_len
 
-  human_weight = if human_prob === nothing
-    n_humans > 0 ? ones(Float64, n_humans) : Float64[]
-  elseif human_prob isa Number
-    fill(Float64(human_prob), n_humans)
-  else
-    Float64.(human_prob)
-  end
-  if length(human_weight) != n_humans
-    error("human_prob must have length n_humans when provided as a vector")
-  end
+  # Fixed per-host-type base bite probabilities (uniform across individuals)
+  bird_prob_const = (n_birds > 0 && !isempty(bird_probs)) ? bird_probs[1] : 0.0
+  human_prob_const = (n_humans > 0 && !isempty(human_probs)) ? human_probs[1] : 0.0
+  horse_prob_const = (n_horses > 0 && !isempty(horse_probs)) ? horse_probs[1] : 0.0
 
-  host_weight_bird = n_birds > 0 ? 1.0 : 0.0
-  host_weight_human = n_humans > 0 ? Statistics.mean(human_weight) : 0.0
-  host_weight_horse = n_horses > 0 ? 1.0 : 0.0
-
-  if human_prob === nothing
-    bird_bite_rate = bite_rate
-    human_bite_rate = bite_rate
-    horse_bite_rate = bite_rate
-  else
-    total_host_weight = host_weight_bird + host_weight_human + host_weight_horse
-    bird_bite_rate = total_host_weight > 0 ? bite_rate * host_weight_bird / total_host_weight : 0.0
-    human_bite_rate = total_host_weight > 0 ? bite_rate * host_weight_human / total_host_weight : 0.0
-    horse_bite_rate = total_host_weight > 0 ? bite_rate * host_weight_horse / total_host_weight : 0.0
-  end
-
-  avg_m_prob = Statistics.mean(mosquito_probs)
-  avg_b_prob = n_birds > 0 ? Statistics.mean(bird_probs) : 0.0
-  avg_h_prob = n_humans > 0 ? Statistics.mean(human_probs .* human_weight) : 0.0
-  avg_ho_prob = n_horses > 0 ? Statistics.mean(horse_probs) : 0.0
-  scale_bird = (avg_m_prob * avg_b_prob) > 0 ? 1 / (avg_m_prob * avg_b_prob) : 0.0
-  scale_human = (avg_m_prob * avg_h_prob) > 0 ? 1 / (avg_m_prob * avg_h_prob) : 0.0
-  scale_horse = (avg_m_prob * avg_ho_prob) > 0 ? 1 / (avg_m_prob * avg_ho_prob) : 0.0
+  bird_bite_rate = bird_prob_const
+  human_bite_rate = human_prob_const
+  horse_bite_rate = horse_prob_const
 
   for s = 2:n_steps
 
@@ -490,7 +465,7 @@ function bite_steps_quad_decay(n_steps::Int64, n_birds::Int64, n_mosquitoes::Int
     for m in 1:n_mosquitoes
       # Birds
       for b in bird_order
-        if rand() < min(1.0, bird_bite_rate * (bite_decay^mosq_cycle_bites[m]) * mosquito_probs[m] * bird_probs[b] * scale_bird)
+        if rand() < min(1.0, bird_bite_rate * (bite_decay^mosq_cycle_bites[m]))
           mosq_cycle_bites[m] += 1
           success = false
           if status_mosquitoes[m] > 0 && status_birds[b] == 0 && latent_birds[b] == 0
@@ -524,7 +499,7 @@ function bite_steps_quad_decay(n_steps::Int64, n_birds::Int64, n_mosquitoes::Int
 
       # Humans
       for h in human_order
-        if rand() < min(1.0, human_bite_rate * (bite_decay^mosq_cycle_bites[m]) * mosquito_probs[m] * human_probs[h] * human_weight[h] * scale_human)
+        if rand() < min(1.0, human_bite_rate * (bite_decay^mosq_cycle_bites[m]))
           mosq_cycle_bites[m] += 1
           success = false
           if status_mosquitoes[m] > 0 && status_humans[h] == 0
@@ -541,7 +516,7 @@ function bite_steps_quad_decay(n_steps::Int64, n_birds::Int64, n_mosquitoes::Int
 
       # Horses
       for ho in horse_order
-        if rand() < min(1.0, horse_bite_rate * (bite_decay^mosq_cycle_bites[m]) * mosquito_probs[m] * horse_probs[ho] * scale_horse)
+        if rand() < min(1.0, horse_bite_rate * (bite_decay^mosq_cycle_bites[m]))
           mosq_cycle_bites[m] += 1
           success = false
           if status_mosquitoes[m] > 0 && status_horses[ho] == 0
