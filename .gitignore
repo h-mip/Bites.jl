@@ -5,3 +5,7 @@
 /docs/build/
 
 *code-workspace
+
+scripts/quad_batch/*
+
+.DS_Store

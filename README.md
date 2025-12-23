@@ -5,7 +5,8 @@
 [![Build Status](https://github.com/h-mip/Bites.jl/workflows/CI/badge.svg)](https://github.com/h-mip/Bites.jl/actions)
 [![Coverage](https://codecov.io/gh/h-mip/Bites.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/h-mip/Bites.jl)
 
-Bites is a Julia package for analyzing human-mosquito biting networks.
+Bites is a Julia package for analyzing mosquito-host biting networks. In addition to bipartite mosquito-host models, Bites now supports quadripartite simulations with birds, mosquitoes, humans, and horses, suitable for West Nile Virus (WNV) transmission modeling. The package includes features for simulating incubation periods, customizing mosquito->human targeting weights, and an optional bite-decay variant that reduces a mosquito’s chance of additional bites within a gonotrophic cycle across all host types.
+
 
 ## Installation
 ```julia
@@ -14,9 +15,9 @@ Bites is a Julia package for analyzing human-mosquito biting networks.
 
 ## About
 
-Bites has been developed as part of the [Human-Mosquito Interaction Project](https://h-mip.com), which has received funding from the European Research Council (ERC) under the European Union’s Horizon 2020 research and innovation programme (Grant agreement No. 853271). 
+Bites.jl was developed as part of the [Host-Mosquito Interaction Project (H-MIP)](https://h-mip.github.io/), funded by the European Research Council (ERC) under the European Union’s Horizon 2020 research and innovation programme (Grant agreement No. 853271). The quadripartite network components used for West Nile Virus modeling were added as part of the [E4Warning project](https://www.e4warning.eu) (Eco-Epidemiological Intelligence for early Warning and response to mosquito-borne disease risk in Endemic and Emergence settings) funded by the European Union’s Horizon Europe programme under Grant Agreement 101086640.
 
-Copyright 2021 John R.B. Palmer
+Copyright 2021-2025 John R.B. Palmer
 
 Bites.jl is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
 
