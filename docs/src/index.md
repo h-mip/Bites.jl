@@ -51,11 +51,15 @@ mosq_ts, bird_ts, hum_ts, horse_ts, bird_rec, hum_rec, horse_rec = bite_steps_qu
 
 ## New: bite decay variant (non-breaking)
 
-`bite_steps_quad_decay` is an optional quadripartite variant that tapers each infected mosquito’s chance of taking additional bites within a day. Multiple bites are still possible, but each successive bite is less likely. Existing functions remain unchanged.
+`bite_steps_quad_decay` is an optional quadripartite variant that tapers each mosquito’s chance of taking additional bites within a gonotrophic cycle. Decay is per mosquito and applies across hosts: every successful bite (bird/human/horse) lowers the probability of the next bite attempt in that cycle. Hosts are shuffled each step to avoid ordering bias. Existing functions remain unchanged.
 
 Key parameters:
-- `gonotrophic_length` (Int, default 4): interprets steps as days; shorter length implies more bite attempts per day.
-- `bite_decay` (Float64, default 0.2): per-bite multiplier applied after each bite attempt; smaller values reduce the chance of second/third bites.
+- `gonotrophic_length` (Int, default 4): interprets steps as days; shorter length implies more bite opportunities per day.
+- `bite_decay` (Float64, default 0.2): per-bite multiplier applied after each successful bite; smaller values reduce the chance of second/third bites.
+
+Notes:
+- Base bite rates are taken from the first element of each `*_probs` vector (uniform within host type) in this variant.
+- `human_prob` weighting is only used in `bite_steps_quad`; the decay variant uses the per-host-type probabilities directly.
 
 Example:
 
