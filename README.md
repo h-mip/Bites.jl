@@ -15,7 +15,9 @@ Bites is a Julia package for analyzing mosquito-host biting networks. In additio
 
 ## About
 
-Copyright 2021 John R.B. Palmer
+Bites.jl was developed as part of the [Host-Mosquito Interaction Project (H-MIP)](https://h-mip.github.io/), funded by the European Research Council (ERC) under the European Union’s Horizon 2020 research and innovation programme (Grant agreement No. 853271). The quadripartite network components used for West Nile Virus modeling were added as part of the [E4Warning project](https://www.e4warning.eu) (Eco-Epidemiological Intelligence for early Warning and response to mosquito-borne disease risk in Endemic and Emergence settings) funded by the European Union’s Horizon Europe programme under Grant Agreement 101086640.
+
+Copyright 2021-2025 John R.B. Palmer
 
 Bites.jl is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
 
