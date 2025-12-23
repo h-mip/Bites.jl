@@ -396,13 +396,9 @@ function bite_steps_quad_decay(n_steps::Int64, n_birds::Int64, n_mosquitoes::Int
   bite_rate = 1 / cycle_len
 
   # Fixed per-host-type base bite probabilities (uniform across individuals)
-  bird_prob_const = (n_birds > 0 && !isempty(bird_probs)) ? bird_probs[1] : 0.0
-  human_prob_const = (n_humans > 0 && !isempty(human_probs)) ? human_probs[1] : 0.0
-  horse_prob_const = (n_horses > 0 && !isempty(horse_probs)) ? horse_probs[1] : 0.0
-
-  bird_bite_rate = bird_prob_const
-  human_bite_rate = human_prob_const
-  horse_bite_rate = horse_prob_const
+  bird_bite_rate = (n_birds > 0 && !isempty(bird_probs)) ? bird_probs[1] : 0.0
+  human_bite_rate = (n_humans > 0 && !isempty(human_probs)) ? human_probs[1] : 0.0
+  horse_bite_rate = (n_horses > 0 && !isempty(horse_probs)) ? horse_probs[1] : 0.0
 
   for s = 2:n_steps
 
@@ -456,77 +452,81 @@ function bite_steps_quad_decay(n_steps::Int64, n_birds::Int64, n_mosquitoes::Int
       status_mosquitoes[expiring_ms] .= 1
     end
 
-    # Precompute shuffled orders to avoid ordering bias within the step
-    bird_order = collect(1:n_birds); Random.shuffle!(bird_order)
-    human_order = collect(1:n_humans); Random.shuffle!(human_order)
-    horse_order = collect(1:n_horses); Random.shuffle!(horse_order)
+    # Build unified host list and shuffle once per step to remove ordering bias
+    host_types = Int[]
+    host_indices = Int[]
+    host_bite_probs = Float64[]
+
+    for i in 1:n_birds
+      push!(host_types, 1); push!(host_indices, i); push!(host_bite_probs, bird_bite_rate)
+    end
+    for i in 1:n_humans
+      push!(host_types, 2); push!(host_indices, i); push!(host_bite_probs, human_bite_rate)
+    end
+    for i in 1:n_horses
+      push!(host_types, 3); push!(host_indices, i); push!(host_bite_probs, horse_bite_rate)
+    end
+
+    perm = collect(1:length(host_types))
+    Random.shuffle!(perm)
 
     # Mosquito-centric biting with per-bite decay over the current gonotrophic cycle
     for m in 1:n_mosquitoes
-      # Birds
-      for b in bird_order
-        if rand() < min(1.0, bird_bite_rate * (bite_decay^mosq_cycle_bites[m]))
+      for p in perm
+        this_bite_prob = host_bite_probs[p] * (bite_decay^mosq_cycle_bites[m])
+        if rand() < min(1.0, this_bite_prob)
           mosq_cycle_bites[m] += 1
           success = false
-          if status_mosquitoes[m] > 0 && status_birds[b] == 0 && latent_birds[b] == 0
-            success = rand() < p_mosquito_to_bird
-            if success
-              if bird_incubation_time > 0
-                latent_birds[b] = bird_incubation_time
-              else
-                status_birds[b] = 1
-              end
-            end
-          elseif status_birds[b] > 0 && status_mosquitoes[m] == 0 && latent_mosquitoes[m] == 0
-            success = rand() < p_bird_to_mosquito
-            if success
-              if mosquito_incubation_time > 0
-                latent_mosquitoes[m] = mosquito_incubation_time
-              else
-                status_mosquitoes[m] = 1
-              end
-              if !infected_ever[m]
-                infected_ever[m] = true
-                mosq_ever_total += 1
-              end
-            end
-          end
-          if record_network
-            push!(network_edges, (step=s, mosquito=m, target_type=:bird, target=b, success=success))
-          end
-        end
-      end
+          ht = host_types[p]
+          idx = host_indices[p]
 
-      # Humans
-      for h in human_order
-        if rand() < min(1.0, human_bite_rate * (bite_decay^mosq_cycle_bites[m]))
-          mosq_cycle_bites[m] += 1
-          success = false
-          if status_mosquitoes[m] > 0 && status_humans[h] == 0
-            success = rand() < p_mosquito_to_human
-            if success
-              status_humans[h] = 1
+          if ht == 1
+            if status_mosquitoes[m] > 0 && status_birds[idx] == 0 && latent_birds[idx] == 0
+              success = rand() < p_mosquito_to_bird
+              if success
+                if bird_incubation_time > 0
+                  latent_birds[idx] = bird_incubation_time
+                else
+                  status_birds[idx] = 1
+                end
+              end
+            elseif status_birds[idx] > 0 && status_mosquitoes[m] == 0 && latent_mosquitoes[m] == 0
+              success = rand() < p_bird_to_mosquito
+              if success
+                if mosquito_incubation_time > 0
+                  latent_mosquitoes[m] = mosquito_incubation_time
+                else
+                  status_mosquitoes[m] = 1
+                end
+                if !infected_ever[m]
+                  infected_ever[m] = true
+                  mosq_ever_total += 1
+                end
+              end
             end
-          end
-          if record_network
-            push!(network_edges, (step=s, mosquito=m, target_type=:human, target=h, success=success))
-          end
-        end
-      end
-
-      # Horses
-      for ho in horse_order
-        if rand() < min(1.0, horse_bite_rate * (bite_decay^mosq_cycle_bites[m]))
-          mosq_cycle_bites[m] += 1
-          success = false
-          if status_mosquitoes[m] > 0 && status_horses[ho] == 0
-            success = rand() < p_mosquito_to_horse
-            if success
-              status_horses[ho] = 1
+            if record_network
+              push!(network_edges, (step=s, mosquito=m, target_type=:bird, target=idx, success=success))
             end
-          end
-          if record_network
-            push!(network_edges, (step=s, mosquito=m, target_type=:horse, target=ho, success=success))
+          elseif ht == 2
+            if status_mosquitoes[m] > 0 && status_humans[idx] == 0
+              success = rand() < p_mosquito_to_human
+              if success
+                status_humans[idx] = 1
+              end
+            end
+            if record_network
+              push!(network_edges, (step=s, mosquito=m, target_type=:human, target=idx, success=success))
+            end
+          else
+            if status_mosquitoes[m] > 0 && status_horses[idx] == 0
+              success = rand() < p_mosquito_to_horse
+              if success
+                status_horses[idx] = 1
+              end
+            end
+            if record_network
+              push!(network_edges, (step=s, mosquito=m, target_type=:horse, target=idx, success=success))
+            end
           end
         end
       end
