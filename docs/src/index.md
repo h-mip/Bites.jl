@@ -81,6 +81,14 @@ mosq_ts, bird_ts, hum_ts, horse_ts, bird_rec, hum_rec, horse_rec = bite_steps_qu
 
 ## API reference
 
+```@docs
+bite_steps
+bite_steps_quad
+bite_steps_quad_decay
+distribute_bite_probabilities
+calculate_r0
+```
+
 ```@index
 ```
 
