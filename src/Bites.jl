@@ -2,6 +2,18 @@ module Bites
 
 import Random, Distributions, Statistics
 
+"""
+    infect(human_prob::Float64, mosquito_prob::Float64, transmission_prob::Float64)::Bool
+
+Determines whether a transmission event occurs given the probability of an infected host being bitten, the probability of a susceptible host being bitten, and the transmission probability.
+
+Returns `true` if transmission occurs, `false` otherwise.
+
+## Parameters
+* `human_prob` - Probability that the human (or other host) is involved in a bite event. Float64.
+* `mosquito_prob` - Probability that the mosquito is involved in a bite event. Float64.
+* `transmission_prob` - Probability of transmission given a bite event between infected and susceptible individuals. Float64.
+"""
 function infect(human_prob::Float64, mosquito_prob::Float64, transmission_prob::Float64)::Bool
     this_p = human_prob * mosquito_prob * transmission_prob
     if this_p <= 0
@@ -13,6 +25,18 @@ function infect(human_prob::Float64, mosquito_prob::Float64, transmission_prob::
     end
 end
 
+"""
+    one_way_bites(infecteds::Array{Float64, 1}, susceptibles::Array{Float64, 1}, transmission_prob::Float64)::Array{Bool, 1}
+
+Simulates one-way transmission from infected individuals to susceptible individuals.
+
+Returns a boolean array indicating which susceptible individuals become infected.
+
+## Parameters
+* `infecteds` - Array of probabilities for infected individuals. Float64 array.
+* `susceptibles` - Array of probabilities for susceptible individuals. Float64 array.
+* `transmission_prob` - Probability of transmission given contact. Float64.
+"""
 function one_way_bites(infecteds::Array{Float64, 1}, susceptibles::Array{Float64, 1}, transmission_prob::Float64)::Array{Bool, 1}
   result = zeros(Bool, length(susceptibles)) 
   if length(infecteds) > 0
@@ -38,7 +62,7 @@ Returns a Tuple containing (1) an array with number of infected mosquitoes at ea
 """
 function bite_steps(n_steps::Int64, n_humans::Int64, n_mosquitoes::Int64, human_infection_time::Int64, mosquito_life_span::Int64, human_probs::Array{Float64, 1}, mosquito_probs::Array{Float64, 1}, transmission_prob::Float64)::Tuple{Array{Int64, 1}, Array{Int64, 1}, Array{Int64, 1}}
 
-  # vectors of infections statusas follows: 0 = susceptible, >0 = infected, <0 = recovered. Everyone starts susceptible
+  # vectors of infections statuses as follows: 0 = susceptible, >0 = infected, <0 = recovered. Everyone starts susceptible
   status_humans = zeros(Int, n_humans)
   status_mosquitoes = zeros(Int, n_mosquitoes)
 
@@ -72,7 +96,7 @@ for s = 2:n_steps
 
     # find indexes of infected humans (status>0)
     i_hs = findall(status_humans .> 0)
-    # find indexes of susecptible mosquitoes (status == 0)
+    # find indexes of susceptible mosquitoes (status == 0)
     s_ms = findall(status_mosquitoes .==0)
     
   # human-to-mosquito infections
@@ -330,7 +354,7 @@ end
     human_prob::Union{Float64, AbstractVector{<:Float64}, Nothing}=nothing,
   )
 
-Optional logging: set `collect_bite_counts=true` and pass a `Dict{Int,Int}` via `bite_cycle_counts` to accumulate a histogram of bites per mosquito gonotrophic cycle. Provide `network_edges` as a vector of named tuples to capture bite edges for visualization; leave at `nothing` to avoid overhead. Each logged edge includes `success::Bool` to indicate whether transmission occurred. Birds and mosquitoes now incubate in a latent state for the given incubation times before becoming infectious; infectious duration still follows `bird_infection_time` for birds (mosquitoes remain infectious until death). `human_prob` (scalar or vector) weights humans in the normalized host target mix alongside birds and horses. The function returns an eighth value: total mosquitoes ever infected (slot-level) over the run, useful for cumulative AR.
+Optional logging: set `collect_bite_counts=true` and pass a `Dict{Int,Int}` via `bite_cycle_counts` to accumulate a histogram of bites per mosquito gonotrophic cycle. Provide `network_edges` as a vector of named tuples to capture bite edges for visualization; leave at `nothing` to avoid overhead. Each logged edge includes `success::Bool` to indicate whether transmission occurred. Birds and mosquitoes now incubate in a latent state for the given incubation times before becoming infectious; infectious duration still follows `bird_infection_time` for birds (mosquitoes remain infectious until death). Note: The `human_prob` parameter is accepted for API compatibility but not currently used in this function; use `human_probs` to control per-human bite rates. The function returns an eighth value: total mosquitoes ever infected (slot-level) over the run, useful for cumulative AR.
 """
 function bite_steps_quad_decay(n_steps::Int64, n_birds::Int64, n_mosquitoes::Int64, n_humans::Int64, n_horses::Int64, bird_infection_time::Int64, human_infection_time::Int64, horse_infection_time::Int64, mosquito_life_span::Int64, bird_probs::Array{Float64, 1}, mosquito_probs::Array{Float64, 1}, human_probs::Array{Float64, 1}, horse_probs::Array{Float64, 1}, p_bird_to_mosquito::Float64, p_mosquito_to_bird::Float64, p_mosquito_to_human::Float64, p_mosquito_to_horse::Float64; seed_birds::Int=1, seed_mosquitoes::Int=0, seed_humans::Int=0, seed_horses::Int=0, gonotrophic_length::Int=4, bite_decay::Float64=0.2, collect_bite_counts::Bool=false, bite_cycle_counts::Dict{Int, Int}=Dict{Int, Int}(), network_edges::Union{Nothing, Vector{NamedTuple{(:step, :mosquito, :target_type, :target, :success), Tuple{Int, Int, Symbol, Int, Bool}}}}=nothing, bird_incubation_time::Int=10, mosquito_incubation_time::Int=4, human_prob::Union{Float64, AbstractVector{<:Float64}, Nothing}=nothing)
 
@@ -589,9 +613,9 @@ export calculate_r0
 Returns a named Tuple containing (1) R0 (mean of reps), (2) R0 for each repetition, (3) mean R0 for successive numbers of repetitions.
 
 ## Parameters
-* `n_reps` The number of repetitions in the simulation. In64. 
-* `infection_ts` The matrix time series of number of infected cases at each time step. A two-dimensional array of In64 with dimensions equal to number of repetitions and number of time steps.
-* `seed_cases` Number of infected cases seeded into the population at the beginning of each repetition. If `seed_cases=0`, then the first cases will be detected in the data. (For example, if we seed 1 infected human case into the population, then we would use `seed_cases=1` for the huiman R0 and `seed_cases=0` for the mosquito R0.)
+* `n_reps` The number of repetitions in the simulation. Int64. 
+* `infection_ts` The matrix time series of number of infected cases at each time step. A two-dimensional array of Int64 with dimensions equal to number of repetitions and number of time steps.
+* `seed_cases` Number of infected cases seeded into the population at the beginning of each repetition. If `seed_cases=0`, then the first cases will be detected in the data. (For example, if we seed 1 infected human case into the population, then we would use `seed_cases=1` for the human R0 and `seed_cases=0` for the mosquito R0.)
 """
 function calculate_r0(n_reps::Int64, infection_ts::Array{Int64,2}, seed_cases::Int64)
 
