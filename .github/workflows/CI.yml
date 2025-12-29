@@ -64,3 +64,23 @@ jobs:
           JULIA_PKG_SERVER: ""
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}
+      - name: Deploy root index.html to gh-pages
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          # Clone gh-pages branch
+          git clone --branch gh-pages --depth 1 https://github.com/h-mip/Bites.jl.git gh-pages-temp
+          
+          # Copy the landing page
+          cp docs/build/index.html gh-pages-temp/index.html
+          
+          # Commit and push if there are changes
+          cd gh-pages-temp
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          if git diff --staged --quiet; then
+            echo "No changes to root index.html"
+          else
+            git commit -m "Deploy root index.html landing page"
+            git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/h-mip/Bites.jl.git gh-pages
+          fi
