@@ -15,13 +15,35 @@ makedocs(;
     sitename="Bites.jl",
     format=Documenter.HTML(;
         prettyurls=get(ENV, "CI", "false") == "true",
-        canonical="https://h-mip.github.io/Bites.jl",
+        canonical="https://h-mip.github.io/Bites.jl/stable/",
         assets=String[],
     ),
     pages=[
         "Home" => "index.md",
     ],
 )
+
+# Create a root index.html that redirects to stable
+if get(ENV, "CI", "false") == "true"
+    build_dir = joinpath(@__DIR__, "build")
+    if isdir(build_dir)
+        open(joinpath(build_dir, "index.html"), "w") do io
+            write(io, """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta http-equiv="refresh" content="0; url=stable/" />
+                <meta name="robots" content="noindex">
+                <link rel="canonical" href="stable/" />
+            </head>
+            <body>
+                <p>Redirecting to <a href="stable/">stable documentation</a>...</p>
+            </body>
+            </html>
+            """)
+        end
+    end
+end
 
 if get(ENV, "CI", "false") == "true"
     deploydocs(;
