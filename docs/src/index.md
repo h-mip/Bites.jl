@@ -8,6 +8,8 @@ CurrentModule = Bites
 
 Bites is a Julia package for analyzing mosquito-host biting networks. In addition to bipartite mosquito-host models, Bites now supports quadripartite simulations with birds, mosquitoes, humans, and horses, suitable for West Nile Virus (WNV) transmission modeling. The package includes features for simulating incubation periods, customizing mosquito->human targeting weights, and an optional bite-decay variant that reduces a mosquito’s chance of additional bites within a gonotrophic cycle across all host types.
 
+Bites.jl was developed as part of the Host-Mosquito Interaction Project (H-MIP), funded by the European Research Council (ERC) under the European Union's Horizon 2020 research and innovation programme (Grant agreement No. 853271). The quadripartite network components used for West Nile Virus modeling were added as part of the E4Warning project (Eco-Epidemiological Intelligence for early Warning and response to mosquito-borne disease risk in Endemic and Emergence settings) funded by the European Union's Horizon Europe programme under Grant Agreement 101086640.
+
 ## Quick start
 
 ```julia
