@@ -32,12 +32,12 @@ if get(ENV, "CI", "false") == "true"
             <!DOCTYPE html>
             <html>
             <head>
-                <meta http-equiv="refresh" content="0; url=stable/" />
+                <meta http-equiv="refresh" content="0; url=/stable/" />
                 <meta name="robots" content="noindex">
-                <link rel="canonical" href="stable/" />
+                <link rel="canonical" href="/stable/" />
             </head>
             <body>
-                <p>Redirecting to <a href="stable/">stable documentation</a>...</p>
+                <p>Redirecting to <a href="/stable/">stable documentation</a>...</p>
             </body>
             </html>
             """)
