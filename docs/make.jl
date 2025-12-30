@@ -117,8 +117,9 @@ if get(ENV, "CI", "false") == "true"
                     <label for="version-select">Select a documentation version:</label>
                     <select id="version-select" onchange="navigateToVersion()">
                         <option value="">-- Choose a version --</option>
-                        <option value="stable/">Stable (Recommended)</option>
-                        <option value="dev/">Development (Latest)</option>
+                        <option value="stable/">Stable</option>
+                        <option value="v0.1/">v0.1</option>
+                        <option value="dev/">Development</option>
                     </select>
                 </div>
                 
