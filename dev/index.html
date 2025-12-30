@@ -11,64 +11,88 @@
             margin: 80px auto;
             padding: 20px;
             line-height: 1.6;
+            background-color: #fff;
+            color: #333;
         }
         h1 {
-            color: #333;
-            border-bottom: 2px solid #4CAF50;
+            color: #000;
+            border-bottom: 2px solid #ccc;
             padding-bottom: 10px;
         }
-        .version-list {
-            list-style: none;
-            padding: 0;
+        p {
+            color: #333;
         }
-        .version-list li {
-            margin: 15px 0;
+        .intro-text {
+            margin-bottom: 30px;
+            line-height: 1.8;
         }
-        .version-list a {
-            display: inline-block;
-            padding: 12px 24px;
-            background-color: #4CAF50;
-            color: white;
-            text-decoration: none;
+        .version-selector-container {
+            margin: 30px 0;
+        }
+        .version-selector-container label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 500;
+            color: #000;
+        }
+        select {
+            width: 100%;
+            max-width: 400px;
+            padding: 12px;
+            font-size: 16px;
+            border: 2px solid #999;
             border-radius: 4px;
-            transition: background-color 0.3s;
-            min-width: 200px;
-            text-align: center;
+            background-color: #fff;
+            color: #333;
+            cursor: pointer;
+            transition: border-color 0.3s;
         }
-        .version-list a:hover {
-            background-color: #45a049;
+        select:hover {
+            border-color: #666;
         }
-        .description {
+        select:focus {
+            outline: none;
+            border-color: #000;
+        }
+        .note {
+            margin-top: 40px;
+            padding: 15px;
+            background-color: #f5f5f5;
+            border-left: 4px solid #999;
             color: #666;
             font-size: 0.9em;
-            margin-left: 10px;
-        }
-        .dev-version {
-            background-color: #2196F3;
-        }
-        .dev-version:hover {
-            background-color: #0b7dda;
         }
     </style>
+    <script>
+        function navigateToVersion() {
+            var select = document.getElementById('version-select');
+            var url = select.value;
+            if (url) {
+                window.location.href = url;
+            }
+        }
+    </script>
 </head>
 <body>
     <h1>Bites.jl Documentation</h1>
-    <p>Welcome to the Bites.jl documentation. Please select a version:</p>
     
-    <ul class="version-list">
-        <li>
-            <a href="stable/">📘 Stable Documentation</a>
-            <span class="description">Recommended for most users</span>
-        </li>
-        <li>
-            <a href="dev/" class="dev-version">🚧 Development Documentation</a>
-            <span class="description">Latest features from the main branch</span>
-        </li>
-    </ul>
+    <div class="intro-text">
+        <p>Bites is a Julia package for analyzing mosquito-host biting networks. In addition to bipartite mosquito-host models, Bites now supports quadripartite simulations with birds, mosquitoes, humans, and horses, suitable for West Nile Virus (WNV) transmission modeling. The package includes features for simulating incubation periods, customizing mosquito->human targeting weights, and an optional bite-decay variant that reduces a mosquito's chance of additional bites within a gonotrophic cycle across all host types.</p>
+        
+        <p>Bites.jl was developed as part of the Host-Mosquito Interaction Project (H-MIP), funded by the European Research Council (ERC) under the European Union's Horizon 2020 research and innovation programme (Grant agreement No. 853271). The quadripartite network components used for West Nile Virus modeling were added as part of the E4Warning project (Eco-Epidemiological Intelligence for early Warning and response to mosquito-borne disease risk in Endemic and Emergence settings) funded by the European Union's Horizon Europe programme under Grant Agreement 101086640.</p>
+    </div>
     
-    <p style="margin-top: 40px; color: #666; font-size: 0.9em;">
-        For older versions, please visit the <a href="stable/" style="color: #4CAF50;">stable documentation</a> 
-        and use the version selector in the sidebar.
-    </p>
+    <div class="version-selector-container">
+        <label for="version-select">Select a documentation version:</label>
+        <select id="version-select" onchange="navigateToVersion()">
+            <option value="">-- Choose a version --</option>
+            <option value="stable/">Stable (Recommended)</option>
+            <option value="dev/">Development (Latest)</option>
+        </select>
+    </div>
+    
+    <div class="note">
+        <strong>Note:</strong> For older versions, please visit the stable documentation and use the version selector in the sidebar.
+    </div>
 </body>
 </html>
