@@ -122,9 +122,7 @@ if get(ENV, "CI", "false") == "true"
                     </select>
                 </div>
                 
-                <div class="note">
-                    <strong>Note:</strong> For older versions, please visit the stable documentation and use the version selector in the sidebar.
-                </div>
+           
             </body>
             </html>
             """)
