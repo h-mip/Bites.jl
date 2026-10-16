@@ -1,6 +1,6 @@
 using Bites
 using Test
-import Random, Distributions
+import Random, Distributions, Statistics
 
 @testset "Bites.jl" begin
     Random.seed!(123)
@@ -183,6 +183,128 @@ import Random, Distributions
       )
 
       @test maximum(n_human_default) > 0 # default behavior preserves human infections
+    end
+
+    @testset "bite_steps_quad_decay: independent host choice" begin
+      Random.seed!(2026)
+      nb = nh = no = 1000
+      nm = 1000
+      edges = BiteEdge[]
+      counts = Dict{Int, Int}()
+      out = bite_steps_quad_decay(40, nb, nm, nh, no, 7, 5, 5, 20,
+        fill(0.5, nb), fill(1.0, nm), fill(0.5, nh), fill(0.1, no), 0.8, 0.8, 0.8, 0.8;
+        seed_birds=1, bird_incubation_time=1, mosquito_incubation_time=3,
+        gonotrophic_length=3, p_extra_bite=0.5, collect_bite_counts=true, bite_cycle_counts=counts, network_edges=edges)
+
+      # positional destructuring of the first eight values still works
+      ts_m, ts_b, ts_h, ts_o, rec_b, rec_h, rec_o, ever = out
+      @test length(ts_b) == 40
+      @test ts_b[1] == 1
+      @test out.n_bird_infections === ts_b
+
+      # bites land on host types in proportion to summed weights (0.5 : 0.5 : 0.1)
+      share(t) = count(e -> e.target_type == t, edges) / length(edges)
+      @test isapprox(share(:bird), 0.5 / 1.1; atol=0.02)
+      @test isapprox(share(:human), 0.5 / 1.1; atol=0.02)
+      @test isapprox(share(:horse), 0.1 / 1.1; atol=0.01)
+
+      # feeding is spread over steps: a third of mosquitoes feed each step, two bites per meal on average
+      per_step = [count(e -> e.step == s, edges) for s in 2:40]
+      @test all(abs.(per_step .- nm / 3 * 2) .< 0.25 * nm / 3 * 2)
+
+      # no host receives a pile of bites within one step
+      worst = 0
+      for s in 2:40
+        load = Dict{Tuple{Symbol, Int}, Int}()
+        for e in edges
+          e.step == s || continue
+          load[(e.target_type, e.target)] = get(load, (e.target_type, e.target), 0) + 1
+        end
+        worst = max(worst, maximum(values(load)))
+      end
+      @test worst <= 12
+
+      # bites per meal are geometric with mean 1 / (1 - p_extra_bite), independent of the number of hosts
+      meals = sum(values(counts))
+      @test isapprox(sum(k * v for (k, v) in counts) / meals, 2.0; atol=0.1)
+      @test isapprox(counts[1] / meals, 0.5; atol=0.05)
+      @test !haskey(counts, 0)
+      counts_small = Dict{Int, Int}()
+      bite_steps_quad_decay(40, 100, nm, 50, 100, 7, 5, 5, 20,
+        fill(0.5, 100), fill(1.0, nm), fill(0.5, 50), fill(0.1, 100), 0.8, 0.8, 0.8, 0.8;
+        gonotrophic_length=3, p_extra_bite=0.5, collect_bite_counts=true, bite_cycle_counts=counts_small)
+      @test isapprox(sum(k * v for (k, v) in counts_small) / sum(values(counts_small)), 2.0; atol=0.1)
+
+      # generation bookkeeping adds up
+      @test out.bird_generations[1] == 1
+      @test sum(out.bird_generations) == ts_b[end] + rec_b[end]
+      @test sum(out.mosquito_generations) == ever
+      @test out.mosq_individuals_total >= nm
+      @test isapprox(out.mosq_individuals_total, nm * (1 + 39 / 21); rtol=0.05)   # one cohort of 1000 turns over every 21 steps
+      @test sum(out.human_generations) == ts_h[end] + rec_h[end]
+      @test sum(out.horse_generations) == ts_o[end] + rec_o[end]
+
+      # transmission log holds every non-seed infection
+      tl = TransmissionEvent[]
+      Random.seed!(7)
+      out2 = bite_steps_quad_decay(60, 500, 500, 500, 500, 7, 5, 5, 20,
+        fill(0.5, 500), fill(1.0, 500), fill(0.5, 500), fill(0.1, 500), 0.8, 0.8, 0.8, 0.8;
+        bird_incubation_time=1, mosquito_incubation_time=3, gonotrophic_length=3, p_extra_bite=0.5, transmission_log=tl)
+      @test length(tl) == (sum(out2.bird_generations) - 1) + sum(out2.mosquito_generations) + sum(out2.human_generations) + sum(out2.horse_generations)
+
+      # per-individual weights: a zero-weight host is never bitten, a heavy one gets its share
+      edges_w = BiteEdge[]
+      wb = fill(1.0, 100)
+      wb[1] = 0.0
+      wb[2] = 50.0
+      bite_steps_quad_decay(30, 100, 200, 0, 0, 7, 5, 5, 20, wb, fill(1.0, 200), Float64[], Float64[], 0.8, 0.8, 0.8, 0.8;
+        gonotrophic_length=2, network_edges=edges_w)
+      @test count(e -> e.target == 1, edges_w) == 0
+      @test isapprox(count(e -> e.target == 2, edges_w) / length(edges_w), 50 / 148; atol=0.05)
+
+      # dead-end hosts never start a chain
+      out3 = bite_steps_quad_decay(30, 50, 100, 50, 50, 7, 5, 5, 20,
+        fill(0.5, 50), fill(1.0, 100), fill(0.5, 50), fill(0.5, 50), 1.0, 1.0, 1.0, 1.0;
+        seed_birds=0, seed_humans=1, seed_horses=1, gonotrophic_length=2)
+      @test maximum(out3.n_mosquito_infections) == 0
+      @test maximum(out3.n_bird_infections) == 0
+
+      # removed / invalid keywords fail loudly
+      args = (5, 10, 10, 10, 10, 7, 5, 5, 20, fill(0.5, 10), fill(1.0, 10), fill(0.5, 10), fill(0.1, 10), 0.8, 0.8, 0.8, 0.8)
+      @test_throws ArgumentError bite_steps_quad_decay(args...; bite_decay=0.001)
+      @test_throws ArgumentError bite_steps_quad_decay(args...; p_extra_bite=1.0)
+      @test_throws ArgumentError bite_steps_quad_decay(args...; gonotrophic_length=0)
+    end
+
+    @testset "r0_analytic agrees with realised generations" begin
+      N = 20_000
+      M = 20_000
+      ana = r0_analytic(; n_birds=N, n_mosquitoes=M, n_humans=N, n_horses=N,
+        bird_weight=0.5, human_weight=0.5, horse_weight=0.1,
+        p_bird_to_mosquito=0.8, p_mosquito_to_bird=0.8, p_mosquito_to_human=0.8, p_mosquito_to_horse=0.8,
+        bird_infection_time=7, mosquito_life_span=20, mosquito_incubation_time=3, gonotrophic_length=3, p_extra_bite=0.5)
+      @test isapprox(ana.share_bird, 0.5 / 1.1)
+      @test isapprox(ana.bites_per_mosquito_per_step, 2 / 3)
+      @test isapprox(ana.infectious_meals_per_infected_mosquito, 3.0)
+
+      # large population so that depletion is negligible; 40 steps cover every first-generation infection
+      nreps = 400
+      g0_mosq = zeros(nreps)
+      g1_birds = zeros(nreps)
+      g1_humans = zeros(nreps)
+      for r in 1:nreps
+        Random.seed!(1000 + r)
+        o = bite_steps_quad_decay(40, N, M, N, N, 7, 5, 5, 20,
+          fill(0.5, N), fill(1.0, M), fill(0.5, N), fill(0.1, N), 0.8, 0.8, 0.8, 0.8;
+          seed_birds=1, bird_incubation_time=1, mosquito_incubation_time=3, gonotrophic_length=3, p_extra_bite=0.5)
+        g0_mosq[r] = length(o.mosquito_generations) >= 1 ? o.mosquito_generations[1] : 0
+        g1_birds[r] = length(o.bird_generations) >= 2 ? o.bird_generations[2] : 0
+        g1_humans[r] = length(o.human_generations) >= 2 ? o.human_generations[2] : 0
+      end
+      se(x) = Statistics.std(x) / sqrt(length(x))
+      @test abs(Statistics.mean(g0_mosq) - ana.R_hv) < 4 * se(g0_mosq) + 0.05
+      @test abs(Statistics.mean(g1_birds) - ana.R0) < 4 * se(g1_birds) + 0.1
+      @test abs(Statistics.mean(g1_humans) - ana.spillover_human) < 4 * se(g1_humans) + 0.1
     end
 
 end

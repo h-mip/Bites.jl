@@ -53,35 +53,38 @@ mosq_ts, bird_ts, hum_ts, horse_ts, bird_rec, hum_rec, horse_rec = bite_steps_qu
 )
 ```
 
-## New: bite decay variant (non-breaking)
+## Quadripartite model with a gonotrophic cycle: `bite_steps_quad_decay`
 
-`bite_steps_quad_decay` is an optional quadripartite variant that tapers each mosquito’s chance of taking additional bites within a gonotrophic cycle. Decay is per mosquito and applies across hosts: every successful bite (bird/human/horse) lowers the probability of the next bite attempt in that cycle. Hosts are shuffled each step to avoid ordering bias. Existing functions remain unchanged.
+`bite_steps_quad_decay` is the recommended WNV model. Each mosquito has a gonotrophic cycle of `gonotrophic_length` steps with a random phase and takes one blood meal per cycle. After every bite it takes a further bite with probability `p_extra_bite`, so bites per meal are geometric with mean `1 / (1 - p_extra_bite)`; this is the quantity that mixed blood-meal data estimate. Every bite chooses its host independently: the host type with probability proportional to the summed weights of that type, and the individual with probability proportional to its own weight, so per-individual heterogeneity in attractiveness can be modelled through the `*_probs` vectors.
 
 Key parameters:
-- `gonotrophic_length` (Int, default 4): interprets steps as days; shorter length implies more bite opportunities per day.
-- `bite_decay` (Float64, default 0.2): per-bite multiplier applied after each successful bite; smaller values reduce the chance of second/third bites.
+- `gonotrophic_length` (Int, default 4): steps between blood meals.
+- `p_extra_bite` (Float64, default 0.0): probability of a further bite after each bite within a meal.
 
-Notes:
-- Base bite rates are taken from the first element of each `*_probs` vector (uniform within host type) in this variant.
-- `human_prob` weighting is only used in `bite_steps_quad`; the decay variant uses the per-host-type probabilities directly.
+The function returns a `NamedTuple` whose first eight fields are the infection and recovery time series and the number of mosquitoes ever infected, followed by infection counts by transmission generation (`bird_generations`, `mosquito_generations`, `human_generations`, `horse_generations`). With one seeded bird, `bird_generations[2]` is the realised host-to-host reproduction number of the index case. Optional logs: `bite_cycle_counts` (bites per meal), `network_edges` (every bite, as `BiteEdge`), `transmission_log` (every infection, as `TransmissionEvent`).
+
+Versions before 0.2 used a `bite_decay` parameter and one shared host order per step; see `CHANGELOG.md` for why this was replaced.
 
 Example:
 
 ```julia
-mosq_ts, bird_ts, hum_ts, horse_ts, bird_rec, hum_rec, horse_rec = bite_steps_quad_decay(
+out = bite_steps_quad_decay(
 	200, 5_000, 5_000, 1_000, 3_000, 4, 5, 5, 20,
 	bird_probs, mosquito_probs, human_probs, horse_probs,
 	0.3, 0.4, 0.25, 0.2;
 	seed_birds=1,
 	gonotrophic_length=4,
-	bite_decay=0.2,
+	p_extra_bite=0.5,
 )
+out.n_human_infections    # time series of infected humans
+out.bird_generations[2]   # birds infected via the mosquitoes the index bird infected
 ```
 
 ## Probability generation and R₀
 
 - `distribute_bite_probabilities(D1, D2, N1, N2, expected_bites)` to draw human/mosquito bite propensities from distributions in `Distributions.jl` and scale to a target expected bites.
-- `calculate_r0(n_reps, infection_ts, seed_cases)` computes mean R₀ and per-rep R₀ series from infection time series.
+- `r0_analytic(; ...)` gives the expected `R_hv`, `R_vh`, `R0` and spillover per index bird for `bite_steps_quad_decay` in a fully susceptible population, following the simulation's discrete-step mechanics.
+- `calculate_r0` is deprecated: it does not compute a reproduction number (see its docstring).
 
 ## API reference
 
@@ -89,6 +92,7 @@ mosq_ts, bird_ts, hum_ts, horse_ts, bird_rec, hum_rec, horse_rec = bite_steps_qu
 bite_steps
 bite_steps_quad
 bite_steps_quad_decay
+r0_analytic
 distribute_bite_probabilities
 calculate_r0
 ```
