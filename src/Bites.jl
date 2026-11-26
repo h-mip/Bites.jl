@@ -776,6 +776,174 @@ function r0_analytic(; n_birds::Int, n_mosquitoes::Int, n_humans::Int=0, n_horse
   )
 end
 
+export bite_steps_tracked, r0_analytic_bipartite
+"""
+    bite_steps_tracked(n_steps, n_humans, n_mosquitoes, human_infection_time, mosquito_life_span,
+                       human_probs, mosquito_probs, transmission_prob; seed=:uniform)
+
+Same mechanics as [`bite_steps`](@ref) (bipartite human–mosquito network, one seeded human, no incubation,
+mosquitoes infectious until they die and are replaced), with two additions:
+
+- every infection records its transmission generation (the index human is generation 0; a mosquito inherits the
+  generation of the human that infected it; a human infected by that mosquito is one generation later), so
+  `human_generations[2]` is the realised host-to-host reproduction number of the index case;
+- `seed` chooses the index human: `:uniform` (every human equally likely, as in `bite_steps`) or `:degree`
+  (probability proportional to `human_probs`, i.e. the index case is reached the way infection arrives along a
+  bite).
+
+When several infectious individuals could infect the same susceptible in a step, the infector is the first
+success in a random order.
+
+Returns a `NamedTuple` with `n_mosquito_infections`, `n_human_infections`, `n_human_recovered` (as in
+`bite_steps`), `human_generations`, `mosquito_generations` (counts by generation, generation `g` at index
+`g + 1`), `index_human` and `index_human_prob`.
+
+Note that, as in `bite_steps`, a human is infectious during `human_infection_time - 1` biting steps.
+"""
+function bite_steps_tracked(n_steps::Int64, n_humans::Int64, n_mosquitoes::Int64, human_infection_time::Int64, mosquito_life_span::Int64, human_probs::Array{Float64, 1}, mosquito_probs::Array{Float64, 1}, transmission_prob::Float64; seed::Symbol=:uniform)
+
+  seed in (:uniform, :degree) || throw(ArgumentError("seed must be :uniform or :degree, got :$seed"))
+
+  status_humans = zeros(Int, n_humans)          # 0 susceptible, >0 infected (steps since infection), <0 recovered
+  infected_mosquitoes = falses(n_mosquitoes)
+  gen_humans = fill(-1, n_humans)
+  gen_mosquitoes = fill(-1, n_mosquitoes)
+  human_generations = Int[]
+  mosquito_generations = Int[]
+  bump!(v, g) = (while length(v) < g + 1; push!(v, 0); end; v[g + 1] += 1; nothing)
+
+  age_mosquitoes = Random.rand(Distributions.DiscreteUniform(0, mosquito_life_span), n_mosquitoes)
+
+  index_human = if seed === :degree && sum(human_probs) > 0
+    Random.rand(Distributions.Categorical(human_probs ./ sum(human_probs)))
+  else
+    Random.rand(1:n_humans)
+  end
+  status_humans[index_human] = 1
+  gen_humans[index_human] = 0
+  bump!(human_generations, 0)
+
+  n_human_infections = zeros(Int64, n_steps)
+  n_mosquito_infections = zeros(Int64, n_steps)
+  n_human_recovered = zeros(Int64, n_steps)
+  n_human_infections[1] = 1
+
+  i_hs = Int[]; i_ms = Int[]
+
+  for s = 2:n_steps
+
+    @inbounds for h in 1:n_humans
+      if status_humans[h] > 0
+        status_humans[h] += 1
+        status_humans[h] > human_infection_time && (status_humans[h] = -1)
+      end
+    end
+
+    @inbounds for m in 1:n_mosquitoes
+      age_mosquitoes[m] += 1
+      if age_mosquitoes[m] > mosquito_life_span
+        age_mosquitoes[m] = 0
+        infected_mosquitoes[m] = false
+        gen_mosquitoes[m] = -1
+      end
+    end
+
+    # human-to-mosquito
+    empty!(i_hs)
+    @inbounds for h in 1:n_humans
+      status_humans[h] > 0 && push!(i_hs, h)
+    end
+    if !isempty(i_hs)
+      @inbounds for m in 1:n_mosquitoes
+        infected_mosquitoes[m] && continue
+        Random.shuffle!(i_hs)
+        for h in i_hs
+          if Random.rand() < human_probs[h] * mosquito_probs[m] * transmission_prob
+            infected_mosquitoes[m] = true
+            gen_mosquitoes[m] = gen_humans[h]
+            bump!(mosquito_generations, gen_humans[h])
+            break
+          end
+        end
+      end
+    end
+    n_mosquito_infections[s] = count(infected_mosquitoes)
+
+    # mosquito-to-human (mosquitoes infected this step can already transmit, as in bite_steps)
+    empty!(i_ms)
+    @inbounds for m in 1:n_mosquitoes
+      infected_mosquitoes[m] && push!(i_ms, m)
+    end
+    if !isempty(i_ms)
+      @inbounds for h in 1:n_humans
+        status_humans[h] == 0 || continue
+        Random.shuffle!(i_ms)
+        for m in i_ms
+          if Random.rand() < human_probs[h] * mosquito_probs[m] * transmission_prob
+            status_humans[h] = 1
+            gen_humans[h] = gen_mosquitoes[m] + 1
+            bump!(human_generations, gen_humans[h])
+            break
+          end
+        end
+      end
+    end
+
+    n_human_infections[s] = count(>(0), status_humans)
+    n_human_recovered[s] = count(<(0), status_humans)
+
+  end
+
+  return (
+    n_mosquito_infections = n_mosquito_infections,
+    n_human_infections = n_human_infections,
+    n_human_recovered = n_human_recovered,
+    human_generations = human_generations,
+    mosquito_generations = mosquito_generations,
+    index_human = index_human,
+    index_human_prob = human_probs[index_human],
+  )
+end
+
+"""
+    r0_analytic_bipartite(human_probs, mosquito_probs; transmission_prob, human_infection_time, mosquito_life_span)
+
+Expected next-generation quantities of [`bite_steps`](@ref) / [`bite_steps_tracked`](@ref) in a fully
+susceptible population, following the discrete-step mechanics (a human is infectious during
+`human_infection_time - 1` biting steps; a mosquito infected at a uniformly distributed age bites for
+`(mosquito_life_span + 2) / 2` further steps on average, including the step in which it was infected).
+
+Returns a `NamedTuple` with
+- `R0_uniform`: humans infected, via mosquitoes, by an index human chosen uniformly at random
+  (what `human_generations[2]` estimates with `seed = :uniform`);
+- `R0_degree`: the same for an index human chosen with probability proportional to its bite probability
+  (`seed = :degree`); this is the classical next-generation value, larger than `R0_uniform` by the factor
+  `mean(p^2) / mean(p)^2` of the human bite probabilities;
+- `R_hv_uniform`, `R_hv_degree`: mosquitoes infected by such an index human;
+- `heterogeneity_factor = mean(p^2) / mean(p)^2`.
+
+Linear in the per-step probabilities (no saturation), so it is an upper bound that is tight when individual
+per-step infection probabilities are small.
+"""
+function r0_analytic_bipartite(human_probs::AbstractVector{<:Real}, mosquito_probs::AbstractVector{<:Real}; transmission_prob::Real, human_infection_time::Int, mosquito_life_span::Int)
+  Sp = sum(human_probs); Sp2 = sum(abs2, human_probs)
+  Sq = sum(mosquito_probs); Sq2 = sum(abs2, mosquito_probs)
+  n_h = length(human_probs)
+  T_h = max(human_infection_time - 1, 0)
+  D_m = (mosquito_life_span + 2) / 2
+  p_uniform = n_h > 0 ? Sp / n_h : 0.0
+  p_degree = Sp > 0 ? Sp2 / Sp : 0.0
+  # index human with bite probability p infects T_h * tp * p * q_j of mosquito j, which then infects D_m * tp * q_j * Sp humans
+  host_to_host(p) = T_h * D_m * transmission_prob^2 * p * Sq2 * Sp
+  return (
+    R0_uniform = host_to_host(p_uniform),
+    R0_degree = host_to_host(p_degree),
+    R_hv_uniform = T_h * transmission_prob * p_uniform * Sq,
+    R_hv_degree = T_h * transmission_prob * p_degree * Sq,
+    heterogeneity_factor = p_uniform > 0 ? p_degree / p_uniform : NaN,
+  )
+end
+
 export distribute_bite_probabilities
 """
     distribute_bite_probabilities(D1, D2, N1::Int64, N2::Int64, expected_bites::Float64)::Tuple{Array{Float64, 1}, Array{Float64, 1}}

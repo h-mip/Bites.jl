@@ -84,15 +84,19 @@ out.bird_generations[2]   # birds infected via the mosquitoes the index bird inf
 
 - `distribute_bite_probabilities(D1, D2, N1, N2, expected_bites)` to draw human/mosquito bite propensities from distributions in `Distributions.jl` and scale to a target expected bites.
 - `r0_analytic(; ...)` gives the expected `R_hv`, `R_vh`, `R0` and spillover per index bird for `bite_steps_quad_decay` in a fully susceptible population, following the simulation's discrete-step mechanics.
+- `bite_steps_tracked` runs the bipartite model of `bite_steps` and also returns infection counts by transmission generation, so `human_generations[2]` is the realised reproduction number of the index human. Its `seed` keyword chooses the index human uniformly at random (`:uniform`) or in proportion to bite probability (`:degree`).
+- `r0_analytic_bipartite(human_probs, mosquito_probs; ...)` gives the expected reproduction number of the bipartite model in a fully susceptible population for both kinds of index case.
 - `calculate_r0` is deprecated: it does not compute a reproduction number (see its docstring).
 
 ## API reference
 
 ```@docs
 bite_steps
+bite_steps_tracked
 bite_steps_quad
 bite_steps_quad_decay
 r0_analytic
+r0_analytic_bipartite
 distribute_bite_probabilities
 calculate_r0
 ```

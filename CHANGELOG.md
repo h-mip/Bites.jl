@@ -15,6 +15,11 @@
 - `mosq_ever_total` counts individual mosquitoes (a replacement newborn is a new individual), not slots.
 
 ### Added
+- `bite_steps_tracked`: the bipartite model of `bite_steps` with infection counts by transmission generation
+  (`human_generations[2]` is the realised reproduction number of the index human) and a `seed` keyword
+  (`:uniform` or `:degree`) for how the index human is chosen. `bite_steps` itself is unchanged.
+- `r0_analytic_bipartite`: expected reproduction numbers for the bipartite model under uniform and
+  degree-proportional index cases.
 - `p_extra_bite` keyword: probability of a further bite after each bite within a meal, so bites per meal are
   geometric with mean `1 / (1 - p_extra_bite)`. Replaces `bite_decay`.
 - Per-individual host weights are honoured (previously only the first element of each `*_probs` vector was

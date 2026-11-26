@@ -307,4 +307,35 @@ import Random, Distributions, Statistics
       @test abs(Statistics.mean(g1_humans) - ana.spillover_human) < 4 * se(g1_humans) + 0.1
     end
 
+
+    @testset "bite_steps_tracked: generations and seeding" begin
+        Random.seed!(42)
+        n_h, n_m = 200, 800
+        hp, mp = distribute_bite_probabilities(Distributions.Exponential(1.0), 0.001:0.001, n_h, n_m, 300.0)
+        res = bite_steps_tracked(200, n_h, n_m, 3, 20, hp, mp, 0.1)
+        @test res.human_generations[1] == 1
+        @test sum(res.human_generations) == res.n_human_infections[end] + res.n_human_recovered[end]
+        @test length(res.n_human_infections) == 200
+        @test_throws ArgumentError bite_steps_tracked(10, n_h, n_m, 3, 20, hp, mp, 0.1; seed=:nope)
+
+        # degree-biased seeding picks better-connected index cases
+        idx_u = [bite_steps_tracked(2, n_h, n_m, 3, 20, hp, mp, 0.1).index_human_prob for _ in 1:4000]
+        idx_d = [bite_steps_tracked(2, n_h, n_m, 3, 20, hp, mp, 0.1; seed=:degree).index_human_prob for _ in 1:4000]
+        @test isapprox(Statistics.mean(idx_u), Statistics.mean(hp); rtol=0.1)
+        @test isapprox(Statistics.mean(idx_d), sum(abs2, hp) / sum(hp); rtol=0.1)
+
+        # analytic expectation agrees with realised generation-1 counts (large, sparse population: little saturation)
+        Random.seed!(7)
+        n_h, n_m = 2000, 4000
+        hp, mp = distribute_bite_probabilities(Distributions.Uniform(0.5, 1.5), 0.001:0.001, n_h, n_m, 4000.0)
+        ana = r0_analytic_bipartite(hp, mp; transmission_prob=0.2, human_infection_time=3, mosquito_life_span=20)
+        gen1(seed) = Statistics.mean(begin
+            r = bite_steps_tracked(40, n_h, n_m, 3, 20, hp, mp, 0.2; seed=seed)
+            length(r.human_generations) > 1 ? r.human_generations[2] : 0
+        end for _ in 1:3000)
+        @test isapprox(gen1(:uniform), ana.R0_uniform; rtol=0.12)
+        @test isapprox(gen1(:degree), ana.R0_degree; rtol=0.12)
+        @test ana.R0_degree > ana.R0_uniform
+    end
+
 end
