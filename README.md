@@ -6,7 +6,7 @@
 [![Coverage](https://codecov.io/gh/h-mip/Bites.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/h-mip/Bites.jl)
 [![DOI](https://zenodo.org/badge/398859191.svg)](https://doi.org/10.5281/zenodo.18088794)
 
-Bites is a Julia package for analyzing mosquito-host biting networks. In addition to bipartite mosquito-host models, Bites now supports quadripartite simulations with birds, mosquitoes, humans, and horses, suitable for West Nile Virus (WNV) transmission modeling. The package includes features for simulating incubation periods, customizing mosquito->human targeting weights, and an optional bite-decay variant that reduces a mosquito’s chance of additional bites within a gonotrophic cycle across all host types.
+Bites is a Julia package for analyzing mosquito-host biting networks. In addition to bipartite mosquito-host models, Bites now supports quadripartite simulations with birds, mosquitoes, humans, and horses, suitable for West Nile Virus (WNV) transmission modeling. The package includes features for simulating incubation periods, customizing mosquito->human targeting weights, and a quadripartite model with an explicit gonotrophic cycle, multiple feeding (`p_extra_bite`), independent host choice for every bite, and transmission-generation tracking for realised reproduction numbers.
 
 
 ## Installation
